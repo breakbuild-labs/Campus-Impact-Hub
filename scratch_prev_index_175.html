@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Portal Masuk & Autentikasi — Campus Impact Hub</title>
+  <meta name="description" content="Portal Autentikasi Terpadu Campus Impact Hub: Layanan masuk resmi civitas akademika kampus.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%233B49DF' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M22 10v6M2 10l10-5 10 5-10 5z'/><path d='M6 12v5c3 3 9 3 12 0v-5'/></svg>">
+  
+  <!-- Professional Enterprise Fonts: Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <!-- Fullscreen Dedicated Authentication Viewport -->
+  <div class="auth-viewport">
+    
+    <!-- Top System Security Header -->
+    <header class="auth-system-bar">
+      <div class="system-security-badge">
+        <span class="security-dot"></span>
+        <span>Sistem Autentikasi Terpadu &bull; Campus Impact Hub</span>
+      </div>
+      <div class="system-environment-badge">
+        <span>Koneksi Aman TLS 256-Bit</span>
+      </div>
+    </header>
+
+    <!-- Main Centered Authentication Stage -->
+    <main class="auth-main-stage">
+      <div class="auth-card-wrapper" id="authCardContainer">
+        <!-- Rendered dynamically by js/app.js -->
+      </div>
+    </main>
+
+    <!-- Institutional Footer -->
+    <footer class="auth-system-footer">
+      <div>&copy; 2026 <strong>Campus Impact Hub</strong> &bull; Ekosistem Kampus Terpadu</div>
+      <div>Portal Khusus Layanan Masuk & Verifikasi Akun Civitas Akademika</div>
+    </footer>
+
+  </div>
+
+  <!-- Interactive Modal Backdrop (Lupa Sandi / Dialog) -->
+  <div class="modal-backdrop" id="modalBackdrop">
+    <div class="modal-container" id="modalContainer">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modalTitle">Modal Title</h3>
+        <button class="btn-close-modal" id="btnCloseModal" aria-label="Tutup">&times;</button>
+      </div>
+      <div class="modal-body" id="modalBody">
+        <!-- Dynamic Modal Content -->
+      </div>
+      <div class="modal-footer" id="modalFooter">
+        <!-- Dynamic Footer Action Buttons -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- ES6 Module Script -->
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

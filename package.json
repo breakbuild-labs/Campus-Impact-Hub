@@ -1,0 +1,19 @@
+{
+  "name": "campus-impact-hub-web",
+  "version": "1.0.0",
+  "description": "Campus Impact Hub - One Platform for Campus Life & Social Impact (Web Application Edition)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": [
+    "campus-impact-hub",
+    "social-impact",
+    "campus-life",
+    "supabase",
+    "web-app"
+  ],
+  "author": "Google DeepMind / Campus Impact Team",
+  "license": "MIT"
+}

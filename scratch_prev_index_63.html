@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Campus Impact Hub — One Platform for Campus Life & Social Impact</title>
+  <meta name="description" content="Super App Ekosistem Kampus yang menghubungkan masalah masyarakat, talenta mahasiswa, organisasi kampus, event dan portofolio dampak sosial.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎓</text></svg>">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <!-- Top Header / App Bar -->
+  <header class="app-header">
+    <div class="brand-section" id="brandLogo">
+      <div class="brand-logo-icon">🎓</div>
+      <div class="brand-text">
+        <h1>CAMPUS IMPACT HUB</h1>
+        <p>One Platform for Campus Life & Social Impact</p>
+      </div>
+    </div>
+
+    <div class="header-right">
+      <div class="header-pill impact" id="headerImpactPill" title="Lihat My Impact Score">
+        🌱 Impact: <strong>250</strong>
+      </div>
+      <div class="header-pill leadership" id="headerLeadershipPill" title="Lihat Leadership Score">
+        ⭐ Leadership: <strong>125</strong>
+      </div>
+      <button class="btn-role-switcher" id="btnRoleSwitcher" title="Ganti 4 Role Ekosistem">
+        <span>Mahasiswa ▾</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main App Layout -->
+  <div class="app-layout">
+    <!-- Desktop Navigation Sidebar -->
+    <aside class="app-sidebar">
+      <div class="sidebar-user-card" id="sidebarUserCard" title="Klik untuk membuka profil">
+        <div class="avatar-circle" id="sidebarAvatar">BU</div>
+        <div class="sidebar-user-info">
+          <div class="name" id="sidebarUserName">Budi Santoso</div>
+          <div class="role-badge" id="sidebarUserRole">Mahasiswa</div>
+        </div>
+      </div>
+
+      <ul class="nav-menu">
+        <li class="nav-item active" data-tab="home">
+          <span class="icon">🏠</span>
+          <span>Home Dashboard</span>
+        </li>
+        <li class="nav-item" data-tab="projects">
+          <span class="icon">🛠️</span>
+          <span>Social Impact Hub</span>
+        </li>
+        <li class="nav-item" data-tab="organizations">
+          <span class="icon">🏛️</span>
+          <span>Organization Hub</span>
+        </li>
+        <li class="nav-item" data-tab="events">
+          <span class="icon">📅</span>
+          <span>Event Hub & QR Ticket</span>
+        </li>
+        <li class="nav-item" data-tab="impact">
+          <span class="icon">🌟</span>
+          <span>My Impact & Portfolio</span>
+        </li>
+        <li class="nav-item" data-tab="profile">
+          <span class="icon">👤</span>
+          <span>Profil & Arsitektur</span>
+        </li>
+        <li class="nav-item" data-tab="auth" style="margin-top: 14px; border-top: 1px dashed var(--border-color); padding-top: 14px;">
+          <span class="icon">🔐</span>
+          <span>Auth & Role Ekosistem</span>
+        </li>
+      </ul>
+
+      <div class="sidebar-footer">
+        <div><strong>Campus Impact Hub Web</strong></div>
+        <div>Supabase & PostgreSQL Connected</div>
+        <div style="margin-top: 4px;">&copy; 2026 Campus Impact Ecosystem</div>
+      </div>
+    </aside>
+
+    <!-- Main Content Container -->
+    <main class="main-content">
+      <div id="contentContainer">
+        <!-- Rendered dynamically by js/app.js -->
+      </div>
+    </main>
+  </div>
+
+  <!-- Mobile Bottom Navigation Bar (6 Tabs matching Android App) -->
+  <nav class="bottom-nav">
+    <ul class="bottom-nav-tabs">
+      <li class="bottom-tab active" data-tab="home">
+        <span class="tab-icon">🏠</span>
+        <span class="tab-label">Home</span>
+      </li>
+      <li class="bottom-tab" data-tab="projects">
+        <span class="tab-icon">🛠️</span>
+        <span class="tab-label">Projects</span>
+      </li>
+      <li class="bottom-tab" data-tab="organizations">
+        <span class="tab-icon">🏛️</span>
+        <span class="tab-label">Orgs</span>
+      </li>
+      <li class="bottom-tab" data-tab="events">
+        <span class="tab-icon">📅</span>
+        <span class="tab-label">Events</span>
+      </li>
+      <li class="bottom-tab" data-tab="impact">
+        <span class="tab-icon">🌟</span>
+        <span class="tab-label">Impact</span>
+      </li>
+      <li class="bottom-tab" data-tab="profile">
+        <span class="tab-icon">👤</span>
+        <span class="tab-label">Profile</span>
+      </li>
+    </ul>
+  </nav>
+
+  <!-- Interactive Modal Backdrop & Container -->
+  <div class="modal-backdrop" id="modalBackdrop">
+    <div class="modal-container" id="modalContainer">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modalTitle">Modal Title</h3>
+        <button class="btn-close-modal" id="btnCloseModal" aria-label="Tutup">&times;</button>
+      </div>
+      <div class="modal-body" id="modalBody">
+        <!-- Dynamic Modal Content -->
+      </div>
+      <div class="modal-footer" id="modalFooter">
+        <!-- Dynamic Footer Action Buttons -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- ES6 Module Script -->
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
