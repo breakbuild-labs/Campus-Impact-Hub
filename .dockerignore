@@ -1,0 +1,11 @@
+node_modules
+.git
+.gradle
+gradle
+app
+build
+scratch_prev_*
+render_auth_snippet.txt
+build_app.js
+patch_app.js
+*.log

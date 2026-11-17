@@ -1,19 +1,25 @@
 {
   "name": "campus-impact-hub-web",
-  "version": "1.0.0",
-  "description": "Campus Impact Hub - One Platform for Campus Life & Social Impact (Web Application Edition)",
+  "version": "2.0.0",
+  "description": "Campus Impact Hub - One Platform for Campus Life & Social Impact (Full-Stack PostgreSQL & Docker Edition)",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "docker:up": "docker compose up -d --build",
+    "docker:down": "docker compose down"
+  },
+  "dependencies": {
+    "pg": "^8.13.1"
   },
   "keywords": [
     "campus-impact-hub",
     "social-impact",
     "campus-life",
-    "supabase",
+    "postgresql",
+    "docker",
     "web-app"
   ],
-  "author": "Google DeepMind / Campus Impact Team",
+  "author": "Campus Impact Team",
   "license": "MIT"
 }

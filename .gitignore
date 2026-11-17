@@ -15,3 +15,8 @@
 local.properties
 .kotlin
 .idea/
+node_modules/
+data/
+*.db
+*.sqlite
+

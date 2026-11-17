@@ -59,94 +59,46 @@
 
   <!-- Main App Layout -->
   <div class="app-layout">
-    <!-- Desktop Navigation Sidebar (Visible when Logged In) -->
-    <aside class="app-sidebar">
+    <!-- Desktop Navigation Sidebar (Dynamically Adapted to Active Role) -->
+    <aside class="app-sidebar" id="appSidebar">
       <div class="sidebar-user-card" id="sidebarUserCard" title="Lihat profil pengguna">
         <div class="avatar-circle" id="sidebarAvatar">BS</div>
         <div class="sidebar-user-info">
           <div class="name" id="sidebarUserName">Budi Santoso</div>
           <div class="role-badge" id="sidebarUserRole">Mahasiswa</div>
+          <div class="role-unit" id="sidebarUserUnit">S1 Teknik Informatika</div>
         </div>
       </div>
 
-      <ul class="nav-menu">
-        <li class="nav-item" data-tab="home">
-          <span class="icon">
-            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-              <polyline points="9 22 9 12 15 12 15 22"/>
-            </svg>
-          </span>
-          <span>Home Dashboard</span>
-        </li>
-        <li class="nav-item" data-tab="projects">
-          <span class="icon">
-            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <rect width="20" height="14" x="2" y="7" rx="2" ry="2"/>
-              <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
-            </svg>
-          </span>
-          <span>Social Impact Hub</span>
-        </li>
-        <li class="nav-item" data-tab="organizations">
-          <span class="icon">
-            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <rect width="16" height="20" x="4" y="2" rx="2" ry="2"/>
-              <path d="M9 22v-4h6v4"/>
-              <path d="M8 6h.01"/><path d="M16 6h.01"/><path d="M12 6h.01"/>
-              <path d="M12 10h.01"/><path d="M12 14h.01"/>
-            </svg>
-          </span>
-          <span>Organization Hub</span>
-        </li>
-        <li class="nav-item" data-tab="events">
-          <span class="icon">
-            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <rect width="18" height="18" x="3" y="4" rx="2" ry="2"/>
-              <line x1="16" x2="16" y1="2" y2="6"/>
-              <line x1="8" x2="8" y1="2" y2="6"/>
-              <line x1="3" x2="21" y1="10" y2="10"/>
-            </svg>
-          </span>
-          <span>Event Hub & Tiket</span>
-        </li>
-        <li class="nav-item" data-tab="impact">
-          <span class="icon">
-            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
-            </svg>
-          </span>
-          <span>Dampak & Portofolio</span>
-        </li>
-        <li class="nav-item" data-tab="profile">
-          <span class="icon">
-            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/>
-              <circle cx="12" cy="7" r="4"/>
-            </svg>
-          </span>
-          <span>Profil & Sistem</span>
-        </li>
-        <li class="nav-item" data-tab="auth" style="margin-top: 14px; border-top: 1px dashed var(--border-color); padding-top: 14px;">
-          <span class="icon">
-            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-              <polyline points="16 17 21 12 16 7"/>
-              <line x1="21" x2="9" y1="12" y2="12"/>
-            </svg>
-          </span>
-          <span id="navAuthLabel">Keluar dari Akun</span>
-        </li>
+      <!-- Role Switcher Pills inside Sidebar -->
+      <div class="sidebar-role-switcher" id="sidebarRoleSwitcher">
+        <div class="sidebar-section-label">PERAN AKTIF (ROLE)</div>
+        <div class="sidebar-role-pills" id="sidebarRolePills">
+          <!-- Rendered dynamically by js/app.js -->
+        </div>
+      </div>
+
+      <!-- Role Specific Quick Action -->
+      <div id="sidebarQuickAction" class="sidebar-quick-action"></div>
+
+      <!-- Role Specific Menu Header -->
+      <div class="sidebar-section-label" id="sidebarMenuHeading">MENU MAHASISWA</div>
+
+      <ul class="nav-menu" id="sidebarNavMenu">
+        <!-- Rendered dynamically per role by js/app.js -->
       </ul>
 
-      <div class="sidebar-footer">
-        <div><strong>Campus Impact Hub Web</strong></div>
-        <div>Supabase & PostgreSQL Platform</div>
-        <div style="margin-top: 2px;">&copy; 2026 Campus Impact Ecosystem</div>
+      <div class="sidebar-footer" id="sidebarFooter">
+        <div class="sidebar-db-badge" id="sidebarDbBadge" title="Klik untuk melihat status Database">
+          <span class="db-dot online" id="sidebarDbDot"></span>
+          <span id="sidebarDbText">PostgreSQL 16 (Docker)</span>
+        </div>
+        <div style="margin-top: 6px;"><strong>Campus Impact Hub v2.0</strong></div>
+        <div>Full-Stack Docker &amp; PostgreSQL</div>
       </div>
     </aside>
 
-    <!-- Main Content Container (Renders Login & 'Tentang Kamu' OR Full Dashboard) -->
+    <!-- Main Content Container -->
     <main class="main-content">
       <div id="contentContainer">
         <!-- Rendered dynamically by js/app.js -->
@@ -154,61 +106,10 @@
     </main>
   </div>
 
-  <!-- Mobile Bottom Navigation Bar (Visible when Logged In) -->
+  <!-- Mobile Bottom Navigation Bar (Visible when Logged In, Role-Adapted) -->
   <nav class="bottom-nav">
-    <ul class="bottom-nav-tabs">
-      <li class="bottom-tab" data-tab="home">
-        <span class="tab-icon">
-          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-          </svg>
-        </span>
-        <span class="tab-label">Home</span>
-      </li>
-      <li class="bottom-tab" data-tab="projects">
-        <span class="tab-icon">
-          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect width="18" height="12" x="3" y="8" rx="2" ry="2"/>
-            <path d="M16 20V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v15"/>
-          </svg>
-        </span>
-        <span class="tab-label">Projects</span>
-      </li>
-      <li class="bottom-tab" data-tab="organizations">
-        <span class="tab-icon">
-          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect width="16" height="18" x="4" y="3" rx="2" ry="2"/>
-            <path d="M9 21v-4h6v4"/>
-          </svg>
-        </span>
-        <span class="tab-label">Orgs</span>
-      </li>
-      <li class="bottom-tab" data-tab="events">
-        <span class="tab-icon">
-          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect width="18" height="18" x="3" y="4" rx="2" ry="2"/>
-            <line x1="3" x2="21" y1="10" y2="10"/>
-          </svg>
-        </span>
-        <span class="tab-label">Events</span>
-      </li>
-      <li class="bottom-tab" data-tab="impact">
-        <span class="tab-icon">
-          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
-          </svg>
-        </span>
-        <span class="tab-label">Impact</span>
-      </li>
-      <li class="bottom-tab" data-tab="profile">
-        <span class="tab-icon">
-          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/>
-            <circle cx="12" cy="7" r="4"/>
-          </svg>
-        </span>
-        <span class="tab-label">Profile</span>
-      </li>
+    <ul class="bottom-nav-tabs" id="bottomNavTabs">
+      <!-- Rendered dynamically per role by js/app.js -->
     </ul>
   </nav>
 

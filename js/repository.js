@@ -1,12 +1,11 @@
 /**
  * Campus Impact Hub - CampusRepository
- * Mirrored from lat.pam.campusimpacthub.data.CampusRepository.kt
- * With localStorage state persistence & user-driven data input
+ * Full-Stack PostgreSQL Database Synchronization + LocalStorage Session Cache
  */
 
 import { UserRole, ProjectStatus, VerificationStatus, SelectionStage, ApplicantStatus, EventType } from './models.js';
 
-const STORAGE_KEY = 'campus_impact_hub_state_v6_clean';
+const STORAGE_KEY = 'campus_impact_hub_state_v7_db';
 
 export const DEVELOPER_PROFILE = {
   name: 'Budi Santoso',
@@ -18,7 +17,7 @@ export const DEVELOPER_PROFILE = {
   about: 'Mahasiswa santri berprestasi yang berdedikasi membangun platform kolaboratif kampus untuk menghubungkan permasalahan nyata mitra masyarakat (UMKM, Desa, Sekolah), talenta mahasiswa multidisiplin, organisasi kemahasiswaan, dan dampak sosial yang terukur.',
   skills: [
     'Rekayasa Web Terpadu (SPA & Modular JS)',
-    'UI/UX & Desain Sistem Berstandar Aksesibilitas',
+    'Arsitektur Database PostgreSQL & Docker Container',
     'Manajemen Portofolio Dampak Sosial & MBKM',
     'Integrasi QR Code Deterministik & Presensi'
   ],
@@ -35,14 +34,18 @@ const DEFAULT_USERS = [
     id: 'U-MHS-001',
     name: 'Budi Santoso',
     email: 'mahasiswa@kampus.ac.id',
-    identityNumber: '13523001',
+    identityNumber: 'NIM 13523001',
     password: 'password123',
     role: 'student',
     majorOrUnit: 'S1 Teknik Informatika — PBSB',
     faculty: 'Fakultas Ilmu Komputer & Teknologi Informasi',
     status: 'Mahasiswa Aktif',
-    impactScore: 0,
-    leadershipScore: 0,
+    impactScore: 85,
+    leadershipScore: 30,
+    projectsCompleted: 1,
+    umkmHelped: 1,
+    beneficiariesReached: 120,
+    contributionHours: 12,
     bio: 'Mahasiswa santri berprestasi yang berfokus pada kolaborasi rekayasa perangkat lunak dan solusi teknologi tepat guna untuk pemberdayaan masyarakat, UMKM, dan digitalisasi organisasi kampus.',
     interests: ['Teknologi Tepat Guna', 'Pengembangan Komunitas', 'Pemberdayaan Santri'],
     skills: ['Full-Stack Web', 'UI/UX Design', 'Database Architecture']
@@ -59,6 +62,10 @@ const DEFAULT_USERS = [
     status: 'Dosen Pembina & Admin',
     impactScore: 0,
     leadershipScore: 0,
+    projectsCompleted: 0,
+    umkmHelped: 0,
+    beneficiariesReached: 0,
+    contributionHours: 0,
     bio: 'Dosen pembina dan pengelola ekosistem kemahasiswaan dan pengabdian MBKM kampus.',
     interests: ['Riset Pengabdian', 'Supervisi MBKM', 'Tata Kelola Kampus'],
     skills: ['Supervisi Proyek', 'Audit Kurikulum', 'Kemitraan Industri']
@@ -67,54 +74,45 @@ const DEFAULT_USERS = [
     id: 'U-BEM-003',
     name: 'Rizky Pratama',
     email: 'bem@kampus.ac.id',
-    identityNumber: '13522045',
+    identityNumber: 'NIM 13522045',
     password: 'password123',
     role: 'organization',
     majorOrUnit: 'Presiden Mahasiswa BEM',
     faculty: 'Badan Eksekutif Mahasiswa Universitas',
     status: 'Pengurus Organisasi Resmi',
-    impactScore: 0,
-    leadershipScore: 0,
+    impactScore: 60,
+    leadershipScore: 60,
+    projectsCompleted: 1,
+    umkmHelped: 1,
+    beneficiariesReached: 80,
+    contributionHours: 16,
     bio: 'Pengurus BEM yang mengkoordinasikan kegiatan, advokasi mahasiswa, dan kolaborasi organisasi se-universitas.',
     interests: ['Advokasi Mahasiswa', 'Manajemen Event', 'Kepemimpinan'],
     skills: ['Public Speaking', 'Event Organizing', 'Team Coordination']
   },
   {
     id: 'U-MTR-004',
-    name: 'Yayasan Inovasi Berdaya',
-    email: 'mitra@kampus.ac.id',
-    identityNumber: 'MITRA-2026-08',
+    name: 'UMKM Maju Jaya',
+    email: 'umkm@kampus.ac.id',
+    identityNumber: 'UMKM-2026-08',
     password: 'password123',
     role: 'partner',
-    majorOrUnit: 'Mitra Pemberdayaan Sosial & UMKM',
-    faculty: 'Jaringan Kemitraan Kampus Berdampak',
-    status: 'Mitra Lembaga Terverifikasi',
+    majorOrUnit: 'Pelaku Usaha Mikro, Kecil & Menengah (UMKM)',
+    faculty: 'Jaringan Mitra UMKM Kampus Berdampak',
+    status: 'UMKM Terverifikasi',
     impactScore: 0,
     leadershipScore: 0,
-    bio: 'Lembaga kemitraan masyarakat yang menghubungkan kebutuhan nyata UMKM dan desa dengan solusi mahasiswa.',
-    interests: ['Pemberdayaan UMKM', 'Ekonomi Kerakyatan', 'Desa Binaan'],
-    skills: ['Business Coaching', 'Field Mentorship', 'Community Building']
+    projectsCompleted: 0,
+    umkmHelped: 2,
+    beneficiariesReached: 470,
+    contributionHours: 0,
+    bio: 'Pelaku UMKM binaan yang berkolaborasi dengan mahasiswa untuk digitalisasi pembukuan kasir, manajemen stok, dan pemasaran produk lokal.',
+    interests: ['Digitalisasi UMKM', 'Pemasaran Produk Lokal', 'Manajemen Usaha'],
+    skills: ['Manajemen Toko', 'Produksi Kuliner & Ritel', 'Kemitraan Usaha']
   }
 ];
 
-// Starting user state (fresh/clean, ready for user inputs)
-const DEFAULT_USER = {
-  id: 'U001',
-  name: 'Budi Santoso',
-  email: 'budi@campusimpact.ac.id',
-  role: 'student',
-  majorOrUnit: 'S1 Teknik Informatika',
-  identityNumber: 'NIM 13523001',
-  impactScore: 0,
-  leadershipScore: 0,
-  projectsCompleted: 0,
-  umkmHelped: 0,
-  beneficiariesReached: 0,
-  contributionHours: 0,
-  interests: ['Teknologi Tepat Guna', 'Pengembangan Komunitas'],
-  skills: ['Software Engineering', 'UI/UX Design'],
-  bio: 'Mahasiswa yang berfokus pada kolaborasi solusi teknologi untuk pemberdayaan masyarakat.'
-};
+const DEFAULT_USER = JSON.parse(JSON.stringify(DEFAULT_USERS[0]));
 
 const DEFAULT_ACTIVITY_POINT_RULES = [
   {
@@ -151,8 +149,28 @@ const DEFAULT_ACTIVITY_POINT_RULES = [
 
 class CampusRepositoryClass {
   constructor() {
-    this.isLoggedIn = false; // Always starts on Login screen first
+    this.isLoggedIn = false;
+    this.dbEngine = 'PostgreSQL 16 (Docker)';
+    this.isDbConnected = false;
+    this.onChangeCallbacks = [];
     this.loadState();
+    this.syncFromDatabase();
+  }
+
+  onDatabaseSync(cb) {
+    if (typeof cb === 'function') {
+      this.onChangeCallbacks.push(cb);
+    }
+  }
+
+  notifyListeners() {
+    this.onChangeCallbacks.forEach(cb => {
+      try {
+        cb();
+      } catch (e) {
+        console.warn('Listener error:', e);
+      }
+    });
   }
 
   loadState() {
@@ -175,10 +193,61 @@ class CampusRepositoryClass {
       console.warn('Gagal memuat state dari localStorage:', e);
     }
 
-    this.resetToEmptyState();
+    this.isLoggedIn = false;
+    this.currentUser = JSON.parse(JSON.stringify(DEFAULT_USER));
+    this.users = JSON.parse(JSON.stringify(DEFAULT_USERS));
+    this.projects = [];
+    this.organizations = [];
+    this.openRecruitments = [];
+    this.events = [];
+    this.portfolioEntries = [];
+    this.activityPointRules = JSON.parse(JSON.stringify(DEFAULT_ACTIVITY_POINT_RULES));
   }
 
-  saveState() {
+  async syncFromDatabase() {
+    try {
+      const res = await fetch('/api/state', { cache: 'no-store' });
+      if (!res.ok) return;
+      const dbData = await res.json();
+
+      this.isDbConnected = true;
+      this.dbEngine = dbData.dbEngine || 'PostgreSQL 16 (Docker)';
+
+      if (Array.isArray(dbData.users) && dbData.users.length > 0) {
+        this.users = dbData.users;
+      }
+      if (Array.isArray(dbData.projects)) {
+        this.projects = dbData.projects;
+      }
+      if (Array.isArray(dbData.organizations)) {
+        this.organizations = dbData.organizations;
+      }
+      if (Array.isArray(dbData.openRecruitments)) {
+        this.openRecruitments = dbData.openRecruitments;
+      }
+      if (Array.isArray(dbData.events)) {
+        this.events = dbData.events;
+      }
+      if (Array.isArray(dbData.portfolioEntries)) {
+        this.portfolioEntries = dbData.portfolioEntries;
+      }
+
+      if (this.currentUser && this.currentUser.id) {
+        const matched = this.users.find(u => u.id === this.currentUser.id || u.role === this.currentUser.role);
+        if (matched) {
+          this.currentUser = { ...matched, ...this.currentUser, role: this.currentUser.role };
+        }
+      }
+
+      this.saveLocalOnly();
+      this.notifyListeners();
+    } catch (e) {
+      this.isDbConnected = false;
+      this.dbEngine = 'Local Browser Storage (Offline Mode)';
+    }
+  }
+
+  saveLocalOnly() {
     try {
       const state = {
         isLoggedIn: this.isLoggedIn,
@@ -196,10 +265,46 @@ class CampusRepositoryClass {
     }
   }
 
-  // Resets to completely clean state: 0 projects, 0 organizations, 0 events, 0 scores
+  saveState() {
+    // Sync currentUser back into users list
+    if (this.currentUser && Array.isArray(this.users)) {
+      const idx = this.users.findIndex(u => u.id === this.currentUser.id);
+      if (idx !== -1) {
+        this.users[idx] = { ...this.users[idx], ...this.currentUser };
+      }
+    }
+
+    this.saveLocalOnly();
+
+    const payload = {
+      isLoggedIn: this.isLoggedIn,
+      currentUser: this.currentUser,
+      projects: this.projects,
+      organizations: this.organizations,
+      openRecruitments: this.openRecruitments,
+      events: this.events,
+      portfolioEntries: this.portfolioEntries,
+      users: this.users
+    };
+
+    fetch('/api/state', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (data && data.dbEngine) {
+          this.isDbConnected = true;
+          this.dbEngine = data.dbEngine;
+        }
+      })
+      .catch(() => {
+        this.isDbConnected = false;
+      });
+  }
+
   resetToEmptyState() {
-    this.isLoggedIn = false;
-    this.currentUser = JSON.parse(JSON.stringify(DEFAULT_USER));
     this.projects = [];
     this.organizations = [];
     this.openRecruitments = [];
@@ -210,7 +315,6 @@ class CampusRepositoryClass {
     this.saveState();
   }
 
-  // Preloads optional demo data if user explicitly requests sample data preview
   loadDemoData() {
     this.projects = [
       {
@@ -237,6 +341,31 @@ class CampusRepositoryClass {
           sdgCategory: 'SDG 8: Pertumbuhan Ekonomi & Pekerjaan Layak',
           partnerFeedback: 'Sangat membantu efisiensi pembukuan dan meminimalisir kesalahan stok.'
         }
+      },
+      {
+        id: 'P002',
+        organizationName: 'Desa Mandiri Sejahtera',
+        title: 'Sistem Informasi Bank Sampah & Smart Village',
+        description: 'Pengelolaan tabungan sampah warga desa dan administrasi surat pengantar RT/RW masih belum terkomputerisasi.',
+        category: 'Lingkungan',
+        location: 'Kab. Bandung Barat',
+        photoCaption: 'Kegiatan Penimbangan Bank Sampah Warga Desa',
+        impactScore: 90,
+        requirements: ['2 Informatika', '1 Teknik Lingkungan'],
+        status: 'ON_GOING',
+        verifiedByAdmin: true,
+        applicantCount: 5,
+        userApplicationState: 'NONE',
+        userRoleInProject: 'Anggota Proyek Sosial (+50 Poin)',
+        impactReport: {
+          id: 'I002',
+          projectId: 'P002',
+          beforeCondition: 'Pencatatan tabungan sampah warga tercecer',
+          afterCondition: 'Dashboard Bank Sampah Digital & Rekap Otomatis',
+          beneficiaries: 350,
+          sdgCategory: 'SDG 11: Kota & Pemukiman Berkelanjutan',
+          partnerFeedback: 'Warga sangat terbantu dengan transparansi saldo tabungan sampah.'
+        }
       }
     ];
 
@@ -245,15 +374,30 @@ class CampusRepositoryClass {
         id: 'ORG001',
         name: 'HIMATIF',
         fullName: 'Himpunan Mahasiswa Teknik Informatika',
-        category: 'Technology',
+        category: 'Teknologi',
         logoInitials: 'HT',
         skNumber: 'SK/REKTOR/ORG-001/2026',
-        advisorName: 'Dr. Hendra Wijaya, S.T., M.T.',
-        contact: 'himatif@campusimpact.ac.id',
+        advisorName: 'Dr. Ir. Hendra Wijaya, M.T.',
+        contact: 'himatif@kampus.ac.id',
         description: 'Organisasi kemahasiswaan jurusan Teknik Informatika yang berfokus pada software engineering dan pengabdian teknologi.',
         memberCount: 120,
         verificationStatus: 'VERIFIED',
         isUserJoined: true,
+        isUserOfficer: false
+      },
+      {
+        id: 'ORG002',
+        name: 'BEM UNIVERSITAS',
+        fullName: 'Badan Eksekutif Mahasiswa Universitas',
+        category: 'Kepemimpinan & Sosial',
+        logoInitials: 'BEM',
+        skNumber: 'SK/REKTOR/BEM-002/2026',
+        advisorName: 'Dr. Ir. Hendra Wijaya, M.T.',
+        contact: 'bem@kampus.ac.id',
+        description: 'Lembaga eksekutif mahasiswa tingkat universitas yang menggerakkan advokasi, kolaborasi organisasi, dan pengabdian masyarakat.',
+        memberCount: 85,
+        verificationStatus: 'VERIFIED',
+        isUserJoined: false,
         isUserOfficer: false
       }
     ];
@@ -263,14 +407,27 @@ class CampusRepositoryClass {
         id: 'REC001',
         organizationId: 'ORG001',
         organizationName: 'HIMATIF',
-        title: 'Open Recruitment Staf & Riset Pengabdian 2027',
+        title: 'Open Recruitment Staf & Riset Pengabdian 2026/2027',
         positions: ['Pengabdian Masyarakat', 'Software Engineering', 'UI/UX Design'],
-        deadline: '20 September 2027',
+        deadline: '20 Desember 2026',
         status: 'open',
         currentStage: 'PENDAFTARAN',
         selectedPosition: null,
         applicantStatus: 'NONE',
         totalApplicants: 18
+      },
+      {
+        id: 'REC002',
+        organizationId: 'ORG002',
+        organizationName: 'BEM UNIVERSITAS',
+        title: 'Perekrutan Kementerian Sosial Masyarakat & Inovasi',
+        positions: ['Kementerian Sosmas', 'Riset & Data', 'Media Kreatif'],
+        deadline: '30 Desember 2026',
+        status: 'open',
+        currentStage: 'PENDAFTARAN',
+        selectedPosition: null,
+        applicantStatus: 'NONE',
+        totalApplicants: 24
       }
     ];
 
@@ -292,16 +449,33 @@ class CampusRepositoryClass {
         isRegistered: false,
         isAttended: false,
         qrTicketCode: `CIH-EV001-${this.currentUser.id}`
+      },
+      {
+        id: 'EV002',
+        title: 'Seminar Nasional Kolaborasi Kampus & UMKM Berdaya',
+        organizerName: 'BEM UNIVERSITAS',
+        type: 'SEMINAR',
+        description: 'Forum kolaborasi antara mahasiswa, dosen pembina, dan mitra UMKM untuk akselerasi ekonomi lokal.',
+        date: '05 Desember 2026 • 13:00 WIB',
+        location: 'Aula Barat Kampus Utama',
+        quota: 250,
+        registeredCount: 98,
+        pointsReward: 10,
+        committeePointsReward: 20,
+        posterSummary: 'Terbuka untuk Mahasiswa, Pengurus UKM, Dosen & Mitra Masyarakat',
+        verifiedByAdmin: true,
+        isRegistered: false,
+        isAttended: false,
+        qrTicketCode: `CIH-EV002-${this.currentUser.id}`
       }
     ];
 
     this.saveState();
   }
 
-  // --- Real-Time Statistics (Dynamically calculated from user data) ---
+  // --- Real-Time Statistics ---
   getTotalActiveStudents() {
     if (!this.isLoggedIn) return 0;
-    // Total applicants across user projects + user itself
     const applicantSum = this.projects.reduce((acc, p) => acc + (p.applicantCount || 0), 0);
     return 1 + applicantSum;
   }
@@ -314,6 +488,10 @@ class CampusRepositoryClass {
     return this.organizations.filter(o => o.verificationStatus === 'VERIFIED').length;
   }
 
+  getPendingOrganizationsCount() {
+    return this.organizations.filter(o => o.verificationStatus === 'PENDING').length;
+  }
+
   getTotalEvents() {
     return this.events.length;
   }
@@ -322,36 +500,23 @@ class CampusRepositoryClass {
     return this.projects.length;
   }
 
+  getOpenProjectsCount() {
+    return this.projects.filter(p => p.status === 'OPEN').length;
+  }
+
   getTotalBeneficiaries() {
     return this.projects.reduce((acc, p) => acc + (p.impactReport?.beneficiaries || 0), 0);
   }
 
   // --- Role Switching ---
   switchRole(roleCode) {
-    this.currentUser.role = roleCode;
-    switch (roleCode) {
-      case 'student':
-        if (!this.currentUser.name || this.currentUser.name.includes('Admin') || this.currentUser.name.includes('Suryono')) {
-          this.currentUser.name = 'Budi Santoso';
-        }
-        this.currentUser.majorOrUnit = 'S1 Teknik Informatika';
-        this.currentUser.identityNumber = 'NIM 13523001';
-        break;
-      case 'partner':
-        this.currentUser.name = 'H. Suryono (Mitra UMKM)';
-        this.currentUser.majorOrUnit = 'Mitra Masyarakat • UMKM Binaan';
-        this.currentUser.identityNumber = 'ID: MITRA-014';
-        break;
-      case 'organization':
-        this.currentUser.name = 'Pengurus HIMATIF';
-        this.currentUser.majorOrUnit = 'Organisasi Kemahasiswaan';
-        this.currentUser.identityNumber = 'ID: ORG-001';
-        break;
-      case 'admin':
-        this.currentUser.name = 'Dr. Prasetyo (Admin Kampus)';
-        this.currentUser.majorOrUnit = 'Direktorat Kemahasiswaan & Pengabdian';
-        this.currentUser.identityNumber = 'NIP 19820411201001';
-        break;
+    const matchedAccount = (this.users || DEFAULT_USERS).find(u => u.role === roleCode) ||
+                           DEFAULT_USERS.find(u => u.role === roleCode);
+
+    if (matchedAccount) {
+      this.currentUser = JSON.parse(JSON.stringify(matchedAccount));
+    } else {
+      this.currentUser.role = roleCode;
     }
     this.saveState();
   }
@@ -368,15 +533,16 @@ class CampusRepositoryClass {
     project.userRoleInProject = roleTitle;
     project.applicantCount = (project.applicantCount || 0) + 1;
 
-    this.currentUser.impactScore += pointsEarned;
+    this.currentUser.impactScore = (this.currentUser.impactScore || 0) + pointsEarned;
     if (asTeamLeader) {
-      this.currentUser.leadershipScore += 75;
+      this.currentUser.leadershipScore = (this.currentUser.leadershipScore || 0) + 75;
     }
-    this.currentUser.projectsCompleted += 1;
-    this.currentUser.contributionHours += 8;
+    this.currentUser.projectsCompleted = (this.currentUser.projectsCompleted || 0) + 1;
+    this.currentUser.contributionHours = (this.currentUser.contributionHours || 0) + 8;
 
     this.portfolioEntries.unshift({
       id: `PF00${this.portfolioEntries.length + 1}`,
+      userId: this.currentUser.id,
       title: `${asTeamLeader ? 'Ketua Tim' : 'Anggota Pelaksana'}: ${project.title}`,
       organizationOrPartner: project.organizationName,
       category: 'Project Sosial',
@@ -388,7 +554,7 @@ class CampusRepositoryClass {
     });
 
     this.saveState();
-    return `Berhasil mendaftar ke "${project.title}" sebagai ${roleTitle}! Status: Menunggu Validasi Mitra.`;
+    return `Berhasil mendaftar ke "${project.title}" sebagai ${roleTitle}! Data tersimpan ke Database.`;
   }
 
   submitProblem({ orgName, title, description, category, location, photoLabel, requirementsInput, estimatedBeneficiaries }) {
@@ -426,8 +592,8 @@ class CampusRepositoryClass {
     };
 
     this.projects.unshift(newProject);
-    this.currentUser.umkmHelped += 1;
-    this.currentUser.beneficiariesReached += benCount;
+    this.currentUser.umkmHelped = (this.currentUser.umkmHelped || 0) + 1;
+    this.currentUser.beneficiariesReached = (this.currentUser.beneficiariesReached || 0) + benCount;
     this.saveState();
     return newProject;
   }
@@ -499,11 +665,12 @@ class CampusRepositoryClass {
       org.isUserOfficer = true;
       org.memberCount = (org.memberCount || 0) + 1;
 
-      this.currentUser.impactScore += 30;
-      this.currentUser.leadershipScore += 30;
+      this.currentUser.impactScore = (this.currentUser.impactScore || 0) + 30;
+      this.currentUser.leadershipScore = (this.currentUser.leadershipScore || 0) + 30;
 
       this.portfolioEntries.unshift({
         id: `PF00${this.portfolioEntries.length + 1}`,
+        userId: this.currentUser.id,
         title: `Pengurus Aktif ${org.name}`,
         organizationOrPartner: org.fullName,
         category: 'Organisasi',
@@ -571,10 +738,11 @@ class CampusRepositoryClass {
       rec.currentStage = 'PENGUMUMAN';
       rec.applicantStatus = acceptAtEnd ? 'ACCEPTED' : 'REJECTED';
       if (acceptAtEnd) {
-        this.currentUser.impactScore += 30;
-        this.currentUser.leadershipScore += 30;
+        this.currentUser.impactScore = (this.currentUser.impactScore || 0) + 30;
+        this.currentUser.leadershipScore = (this.currentUser.leadershipScore || 0) + 30;
         this.portfolioEntries.unshift({
           id: `PF00${this.portfolioEntries.length + 1}`,
+          userId: this.currentUser.id,
           title: `Staf Divisi ${rec.selectedPosition || 'Inti'} — ${rec.organizationName}`,
           organizationOrPartner: rec.organizationName,
           category: 'Organisasi',
@@ -644,14 +812,15 @@ class CampusRepositoryClass {
 
     event.isAttended = true;
     const earnedPoints = asCommittee ? 20 : event.pointsReward;
-    this.currentUser.impactScore += earnedPoints;
+    this.currentUser.impactScore = (this.currentUser.impactScore || 0) + earnedPoints;
     if (asCommittee) {
-      this.currentUser.leadershipScore += 20;
+      this.currentUser.leadershipScore = (this.currentUser.leadershipScore || 0) + 20;
     }
-    this.currentUser.contributionHours += 4;
+    this.currentUser.contributionHours = (this.currentUser.contributionHours || 0) + 4;
 
     this.portfolioEntries.unshift({
       id: `PF00${this.portfolioEntries.length + 1}`,
+      userId: this.currentUser.id,
       title: `${asCommittee ? 'Panitia Pelaksana' : 'Peserta Hadir Terverifikasi'}: ${event.title}`,
       organizationOrPartner: event.organizerName,
       category: 'Sertifikat',
@@ -739,7 +908,6 @@ class CampusRepositoryClass {
     const evts = [];
     const projs = [];
 
-    // Dynamically query user's actual items if available
     this.organizations.forEach(o => orgs.push(o.name));
     this.events.forEach(e => evts.push(e.title));
     this.projects.forEach(p => projs.push(p.title));
@@ -763,22 +931,51 @@ class CampusRepositoryClass {
     };
   }
 
-  // --- Live Supabase / PostgreSQL Snapshot ---
-    // Authentication Methods
+  ensureSeedUsers() {
+    if (!Array.isArray(this.users) || this.users.length === 0) {
+      this.users = JSON.parse(JSON.stringify(DEFAULT_USERS));
+      return;
+    }
+    DEFAULT_USERS.forEach(seed => {
+      const idx = this.users.findIndex(u => u.id === seed.id || u.email.toLowerCase() === seed.email.toLowerCase());
+      if (idx === -1) {
+        this.users.push(JSON.parse(JSON.stringify(seed)));
+      } else {
+        // Ensure seed user always keeps its canonical role, name, email, and identityNumber
+        this.users[idx].id = seed.id;
+        this.users[idx].role = seed.role;
+        this.users[idx].email = seed.email;
+        this.users[idx].name = seed.name;
+        this.users[idx].identityNumber = seed.identityNumber;
+        this.users[idx].majorOrUnit = seed.majorOrUnit;
+      }
+    });
+  }
+
+  // --- Authentication Methods ---
   login(identifier, password, requestedRole = null) {
+    this.ensureSeedUsers();
     const cleanId = (identifier || '').trim().toLowerCase();
     const cleanPass = (password || '').trim();
     if (!cleanId) return { success: false, message: 'Silakan masukkan Email Kampus atau NIM/NIP Anda.' };
     if (!cleanPass) return { success: false, message: 'Silakan masukkan kata sandi akun Anda.' };
-    if (!Array.isArray(this.users) || this.users.length === 0) {
-      this.users = JSON.parse(JSON.stringify(DEFAULT_USERS));
-    }
-    let user = this.users.find(u => u.email.toLowerCase() === cleanId || (u.identityNumber && u.identityNumber.toLowerCase().includes(cleanId)));
+
+    let user = this.users.find(u =>
+      u.email.toLowerCase() === cleanId ||
+      (u.identityNumber && u.identityNumber.toLowerCase().includes(cleanId)) ||
+      (cleanId.replace(/[^0-9a-z]/g, '') && u.identityNumber && u.identityNumber.toLowerCase().replace(/[^0-9a-z]/g, '') === cleanId.replace(/[^0-9a-z]/g, ''))
+    );
+
+    const isSeedAccount = user && DEFAULT_USERS.some(s => s.id === user.id || s.email.toLowerCase() === user.email.toLowerCase());
+
     if (user) {
       if (user.password && user.password !== cleanPass) {
         return { success: false, message: 'Kata sandi yang Anda masukkan salah. Silakan periksa kembali.' };
       }
-      if (requestedRole && user.role !== requestedRole) user.role = requestedRole;
+      // If user is a custom (non-seed) account and requestedRole is provided, allow updating role
+      if (!isSeedAccount && requestedRole && user.role !== requestedRole) {
+        user.role = requestedRole;
+      }
     } else {
       const role = requestedRole || 'student';
       const roleMeta = UserRole[role.toUpperCase()] || UserRole.STUDENT;
@@ -797,6 +994,10 @@ class CampusRepositoryClass {
         status: 'Terautentikasi',
         impactScore: 0,
         leadershipScore: 0,
+        projectsCompleted: 0,
+        umkmHelped: 0,
+        beneficiariesReached: 0,
+        contributionHours: 0,
         bio: 'Pengguna aktif ekosistem Campus Impact Hub.',
         interests: ['Teknologi Tepat Guna', 'Pengembangan Komunitas'],
         skills: ['Kolaborasi', 'Pemecahan Masalah']
@@ -804,19 +1005,19 @@ class CampusRepositoryClass {
       this.users.push(user);
     }
     this.isLoggedIn = true;
-    this.currentUser = user;
+    this.currentUser = JSON.parse(JSON.stringify(user));
     this.saveState();
-    return { success: true, message: 'Selamat datang, ' + user.name + '! Mengalihkan ke Dashboard...', user: user };
+    return { success: true, message: 'Selamat datang, ' + user.name + ' (' + (UserRole[user.role.toUpperCase()]?.label || user.role) + ')! Mengalihkan ke Dashboard...', user: this.currentUser };
   }
 
   register({ name, email, identityNumber, role, password, bio, majorOrUnit }) {
+    this.ensureSeedUsers();
     const cleanEmail = (email || '').trim().toLowerCase();
     const cleanName = (name || '').trim();
     const cleanPass = (password || '').trim();
     if (!cleanName) return { success: false, message: 'Nama lengkap wajib diisi.' };
     if (!cleanEmail) return { success: false, message: 'Email kampus wajib diisi.' };
     if (!cleanPass || cleanPass.length < 6) return { success: false, message: 'Kata sandi minimal harus 6 karakter.' };
-    if (!Array.isArray(this.users)) this.users = JSON.parse(JSON.stringify(DEFAULT_USERS));
     const existing = this.users.find(u => u.email.toLowerCase() === cleanEmail);
     if (existing) return { success: false, message: 'Email kampus ini sudah terdaftar. Silakan langsung masuk.' };
     const assignedRole = role || 'student';
@@ -833,15 +1034,19 @@ class CampusRepositoryClass {
       status: 'Akun Baru Terverifikasi',
       impactScore: 0,
       leadershipScore: 0,
+      projectsCompleted: 0,
+      umkmHelped: 0,
+      beneficiariesReached: 0,
+      contributionHours: 0,
       bio: (bio || '').trim() || 'Pengguna baru terdaftar di Campus Impact Hub.',
       interests: ['Teknologi Tepat Guna', 'Pengembangan Komunitas'],
       skills: ['Kolaborasi']
     };
     this.users.push(newUser);
-    this.currentUser = newUser;
+    this.currentUser = JSON.parse(JSON.stringify(newUser));
     this.isLoggedIn = true;
     this.saveState();
-    return { success: true, message: 'Pendaftaran berhasil! Selamat datang, ' + newUser.name + '.', user: newUser };
+    return { success: true, message: 'Pendaftaran berhasil! Data akun tersimpan di Database. Selamat datang, ' + newUser.name + '.', user: this.currentUser };
   }
 
   logout() {
@@ -850,7 +1055,7 @@ class CampusRepositoryClass {
   }
 
   getDefaultDemoAccounts() {
-    return DEFAULT_USERS;
+    return JSON.parse(JSON.stringify(DEFAULT_USERS));
   }
 
   getDeveloperProfile() {
@@ -858,31 +1063,35 @@ class CampusRepositoryClass {
   }
 
   getMvpDatabaseJsonSnapshot() {
-    const firstProject = this.projects[0] || {};
-    const firstOrg = this.organizations[0] || {};
-    const firstRec = this.openRecruitments[0] || {};
-    const firstEvent = this.events[0] || {};
-
     return JSON.stringify(
       {
-        architecture: 'Web Frontend (SPA) -> Supabase API -> Supabase Auth -> PostgreSQL -> Storage',
+        architecture: 'Web Frontend (SPA) -> Node.js REST API -> PostgreSQL 16 (Docker Container)',
+        database_status: {
+          connected: this.isDbConnected,
+          engine: this.dbEngine
+        },
         session: {
           isLoggedIn: this.isLoggedIn,
           user_id: this.currentUser.id,
           role: this.currentUser.role,
           name: this.currentUser.name
         },
-        metrics: {
-          total_projects: this.projects.length,
-          total_organizations: this.organizations.length,
-          total_events: this.events.length,
+        table_counts: {
+          users: (this.users || []).length,
+          projects: this.projects.length,
+          organizations: this.organizations.length,
+          open_recruitments: this.openRecruitments.length,
+          events: this.events.length,
+          portfolio_entries: this.portfolioEntries.length,
           total_beneficiaries: this.getTotalBeneficiaries()
         },
-        sample_records: {
-          project: firstProject.id ? firstProject : null,
-          organization: firstOrg.id ? firstOrg : null,
-          recruitment: firstRec.id ? firstRec : null,
-          event: firstEvent.id ? firstEvent : null
+        tables: {
+          users: this.users,
+          projects: this.projects,
+          organizations: this.organizations,
+          open_recruitments: this.openRecruitments,
+          events: this.events,
+          portfolio_entries: this.portfolioEntries
         }
       },
       null,

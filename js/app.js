@@ -22,11 +22,20 @@ class CampusImpactHubApp {
 
     this.initDOMElements();
     this.bindGlobalEvents();
+    CampusRepository.onDatabaseSync(() => this.render());
     this.render();
   }
 
   initDOMElements() {
     this.contentEl = document.getElementById('contentContainer');
+    this.appSidebar = document.getElementById('appSidebar');
+    this.sidebarNavMenu = document.getElementById('sidebarNavMenu');
+    this.sidebarMenuHeading = document.getElementById('sidebarMenuHeading');
+    this.sidebarRolePills = document.getElementById('sidebarRolePills');
+    this.sidebarQuickAction = document.getElementById('sidebarQuickAction');
+    this.sidebarDbBadge = document.getElementById('sidebarDbBadge');
+    this.sidebarDbText = document.getElementById('sidebarDbText');
+    this.bottomNavTabs = document.getElementById('bottomNavTabs');
     this.roleSwitcherBtn = document.getElementById('btnRoleSwitcher');
     this.roleSwitcherLabel = document.getElementById('btnRoleSwitcherLabel');
     this.headerImpactPill = document.getElementById('headerImpactPill');
@@ -44,22 +53,6 @@ class CampusImpactHubApp {
   }
 
   bindGlobalEvents() {
-    // Navigation items with login gate
-    document.querySelectorAll('[data-tab]').forEach(el => {
-      el.addEventListener('click', () => {
-        const targetTab = el.getAttribute('data-tab');
-
-        // If not logged in, enforce landing on the login/auth screen
-        if (!CampusRepository.isLoggedIn && targetTab !== 'auth') {
-          this.showToast('Silakan masuk (login) terlebih dahulu untuk mengakses menu ini', 'info');
-          this.switchTab('auth');
-          return;
-        }
-
-        this.switchTab(targetTab);
-      });
-    });
-
     if (this.brandLogoEl) {
       this.brandLogoEl.addEventListener('click', () => {
         if (CampusRepository.isLoggedIn) {
@@ -109,6 +102,12 @@ class CampusImpactHubApp {
       });
     }
 
+    if (this.sidebarDbBadge) {
+      this.sidebarDbBadge.addEventListener('click', () => {
+        this.showDatabaseStatusModal();
+      });
+    }
+
     if (this.btnCloseModal) {
       this.btnCloseModal.addEventListener('click', () => this.closeModal());
     }
@@ -124,6 +123,21 @@ class CampusImpactHubApp {
   }
 
   switchTab(tabName) {
+    if (tabName === 'logout') {
+      CampusRepository.logout();
+      this.showToast('Anda telah keluar dari akun. Silakan masuk kembali.', 'info');
+      this.currentTab = 'auth';
+      this.render();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    if (tabName === 'oprec') {
+      this.selectedOrgSubTab = 1;
+    } else if (tabName === 'organizations') {
+      this.selectedOrgSubTab = 0;
+    }
+
     this.currentTab = tabName;
     this.render();
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -161,30 +175,122 @@ class CampusImpactHubApp {
     this.modalBackdrop.classList.remove('open');
   }
 
+  getRoleSidebarConfig(role, user) {
+    const totalProjects = CampusRepository.getTotalProjects();
+    const openProjects = CampusRepository.getOpenProjectsCount ? CampusRepository.getOpenProjectsCount() : totalProjects;
+    const totalOrgs = CampusRepository.getTotalOrganizations();
+    const pendingOrgs = CampusRepository.getPendingOrganizationsCount ? CampusRepository.getPendingOrganizationsCount() : 0;
+    const totalRec = (CampusRepository.openRecruitments || []).length;
+    const totalEvents = CampusRepository.getTotalEvents();
+    const totalBeneficiaries = CampusRepository.getTotalBeneficiaries();
+
+    switch (role) {
+      case 'admin':
+        return {
+          heading: 'PANEL SUPERVISI DOSEN / ADMIN',
+          quickAction: {
+            label: 'Verifikasi SK / Tambah Proyek',
+            icon: Icons.shield(15),
+            onClick: () => this.showSubmitProblemModal()
+          },
+          items: [
+            { tab: 'home', label: 'Dashboard Supervisi', mobileLabel: 'Supervisi', icon: Icons.home(18), badge: 'Admin' },
+            { tab: 'organizations', label: 'Verifikasi SK Organisasi', mobileLabel: 'Verifikasi SK', icon: Icons.shield(18), badge: pendingOrgs > 0 ? `${pendingOrgs} Pending` : `${totalOrgs} SK` },
+            { tab: 'projects', label: 'Supervisi Proyek MBKM', mobileLabel: 'Proyek MBKM', icon: Icons.project(18), badge: `${totalProjects}` },
+            { tab: 'events', label: 'Validasi Agenda Event', mobileLabel: 'Event', icon: Icons.event(18), badge: `${totalEvents}` },
+            { tab: 'impact', label: 'Analitik Dampak Kampus', mobileLabel: 'Analitik', icon: Icons.activity(18), badge: `${totalBeneficiaries} Jiwa` },
+            { tab: 'profile', label: 'Database & Sistem Server', mobileLabel: 'Database', icon: Icons.database(18), badge: 'PG 16' }
+          ]
+        };
+
+      case 'organization':
+        return {
+          heading: 'MANAJEMEN ORGANISASI / BEM',
+          quickAction: {
+            label: 'Terbitkan Event Organisasi',
+            icon: Icons.plus(15),
+            onClick: () => this.showCreateEventModal()
+          },
+          items: [
+            { tab: 'home', label: 'Dashboard Pengurus', mobileLabel: 'Pengurus', icon: Icons.home(18), badge: 'BEM/UKM' },
+            { tab: 'organizations', label: 'Profil & Legalitas UKM', mobileLabel: 'Profil UKM', icon: Icons.organization(18), badge: `${totalOrgs} UKM` },
+            { tab: 'oprec', label: 'Kelola Open Recruitment', mobileLabel: 'Oprec', icon: Icons.users(18), badge: `${totalRec} Oprec` },
+            { tab: 'events', label: 'Manajemen Event & QR', mobileLabel: 'Event QR', icon: Icons.qrCode(18), badge: `${totalEvents} Event` },
+            { tab: 'projects', label: 'Kolaborasi Proyek Sosial', mobileLabel: 'Kolaborasi', icon: Icons.project(18), badge: `${totalProjects}` },
+            { tab: 'impact', label: 'Rekam Dampak Organisasi', mobileLabel: 'Dampak', icon: Icons.award(18), badge: `${user.leadershipScore || 0} Poin` },
+            { tab: 'profile', label: 'Profil Pengurus & DB', mobileLabel: 'Profil', icon: Icons.user(18) }
+          ]
+        };
+
+      case 'partner':
+        return {
+          heading: 'PORTAL MITRA UMKM',
+          quickAction: {
+            label: 'Ajukan Kebutuhan UMKM Baru',
+            icon: Icons.plus(15),
+            onClick: () => this.showSubmitProblemModal()
+          },
+          items: [
+            { tab: 'home', label: 'Dashboard UMKM', mobileLabel: 'UMKM', icon: Icons.home(18), badge: 'UMKM' },
+            { tab: 'projects', label: 'Proyek & Masalah UMKM', mobileLabel: 'Proyek UMKM', icon: Icons.project(18), badge: `${totalProjects} Proyek` },
+            { tab: 'impact', label: 'Laporan Dampak Usaha', mobileLabel: 'Laporan', icon: Icons.activity(18), badge: `${totalBeneficiaries} Manfaat` },
+            { tab: 'events', label: 'Workshop & Pelatihan UMKM', mobileLabel: 'Workshop', icon: Icons.event(18), badge: `${totalEvents}` },
+            { tab: 'organizations', label: 'Mitra UKM Pelaksana', mobileLabel: 'Mitra UKM', icon: Icons.organization(18), badge: `${totalOrgs}` },
+            { tab: 'profile', label: 'Profil Usaha UMKM', mobileLabel: 'Profil UMKM', icon: Icons.user(18) }
+          ]
+        };
+
+      case 'student':
+      default:
+        return {
+          heading: 'MENU UTAMA MAHASISWA',
+          quickAction: {
+            label: 'Eksplorasi Proyek Sosial',
+            icon: Icons.sparkles(15),
+            onClick: () => this.switchTab('projects')
+          },
+          items: [
+            { tab: 'home', label: 'Dashboard Mahasiswa', mobileLabel: 'Beranda', icon: Icons.home(18) },
+            { tab: 'projects', label: 'Cari Proyek Sosial', mobileLabel: 'Proyek', icon: Icons.project(18), badge: `${openProjects} Open` },
+            { tab: 'organizations', label: 'Direktori UKM & BEM', mobileLabel: 'Organisasi', icon: Icons.organization(18), badge: `${totalOrgs}` },
+            { tab: 'oprec', label: 'Open Recruitment', mobileLabel: 'Oprec', icon: Icons.users(18), badge: `${totalRec} Aktif` },
+            { tab: 'events', label: 'Event & Tiket QR', mobileLabel: 'Tiket QR', icon: Icons.event(18), badge: `${totalEvents}` },
+            { tab: 'impact', label: 'Portofolio & SKPI', mobileLabel: 'SKPI', icon: Icons.award(18), badge: `${user.impactScore || 0} Poin` },
+            { tab: 'profile', label: 'Profil & Akun Mahasiswa', mobileLabel: 'Profil', icon: Icons.user(18) }
+          ]
+        };
+    }
+  }
+
   updateHeaderAndSidebar() {
     const isAuthMode = !CampusRepository.isLoggedIn || this.currentTab === 'auth';
     document.body.classList.toggle('logged-out', isAuthMode);
 
     const user = CampusRepository.currentUser;
     const isLoggedIn = CampusRepository.isLoggedIn;
-    const roleMeta = UserRole[user.role.toUpperCase()] || UserRole.STUDENT;
+    const role = (user.role || 'student').toLowerCase();
+    const roleMeta = UserRole[role.toUpperCase()] || UserRole.STUDENT;
+
+    if (this.appSidebar) {
+      this.appSidebar.setAttribute('data-role', role);
+    }
 
     // Header pills & role button
     if (this.roleSwitcherLabel) {
       this.roleSwitcherLabel.textContent = isLoggedIn ? roleMeta.label : 'Masuk';
     }
     if (this.headerImpactPill) {
-      this.headerImpactPill.innerHTML = `<span class="indicator-dot"></span><span>Impact: <strong>${isLoggedIn ? user.impactScore : 0}</strong></span>`;
+      this.headerImpactPill.innerHTML = `<span class="indicator-dot"></span><span>Impact: <strong>${isLoggedIn ? (user.impactScore || 0) : 0}</strong></span>`;
     }
     if (this.headerLeadershipPill) {
-      this.headerLeadershipPill.innerHTML = `<span class="indicator-dot"></span><span>Leadership: <strong>${isLoggedIn ? user.leadershipScore : 0}</strong></span>`;
+      this.headerLeadershipPill.innerHTML = `<span class="indicator-dot"></span><span>Leadership: <strong>${isLoggedIn ? (user.leadershipScore || 0) : 0}</strong></span>`;
     }
 
     // Sidebar user summary
     const sidebarAvatar = document.getElementById('sidebarAvatar');
     const sidebarUserName = document.getElementById('sidebarUserName');
     const sidebarUserRole = document.getElementById('sidebarUserRole');
-    const navAuthLabel = document.getElementById('navAuthLabel');
+    const sidebarUserUnit = document.getElementById('sidebarUserUnit');
 
     if (sidebarAvatar) {
       if (isLoggedIn && user.name) {
@@ -201,19 +307,127 @@ class CampusImpactHubApp {
     if (sidebarUserRole) {
       sidebarUserRole.textContent = isLoggedIn ? roleMeta.label : 'Silakan Masuk';
     }
-    if (navAuthLabel) {
-      navAuthLabel.textContent = isLoggedIn ? 'Keluar / Ganti Akun' : 'Masuk ke Platform';
+    if (sidebarUserUnit) {
+      sidebarUserUnit.textContent = isLoggedIn ? (user.majorOrUnit || roleMeta.badgeTitle) : '';
     }
 
-    // Active state highlighting in sidebar & bottom nav
-    document.querySelectorAll('[data-tab]').forEach(el => {
-      const tab = el.getAttribute('data-tab');
-      if (tab === this.currentTab) {
-        el.classList.add('active');
-      } else {
-        el.classList.remove('active');
+    if (this.sidebarDbText) {
+      this.sidebarDbText.textContent = CampusRepository.dbEngine || 'PostgreSQL 16 (Docker)';
+    }
+
+    // Render Role Switcher Pills inside Sidebar
+    if (this.sidebarRolePills) {
+      const roleOptions = [
+        { code: 'student', shortLabel: 'Mahasiswa' },
+        { code: 'admin', shortLabel: 'Dosen / Admin' },
+        { code: 'organization', shortLabel: 'BEM / UKM' },
+        { code: 'partner', shortLabel: 'UMKM' }
+      ];
+      this.sidebarRolePills.innerHTML = roleOptions
+        .map(r => `
+          <button type="button" class="sidebar-role-pill ${role === r.code ? 'active' : ''}" data-switch-role="${r.code}" title="Ganti ke role ${r.shortLabel}">
+            ${r.shortLabel}
+          </button>
+        `)
+        .join('');
+
+      this.sidebarRolePills.querySelectorAll('[data-switch-role]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const newRole = btn.getAttribute('data-switch-role');
+          CampusRepository.switchRole(newRole);
+          const newMeta = UserRole[newRole.toUpperCase()] || UserRole.STUDENT;
+          this.showToast(`Peran diubah ke: ${newMeta.label} (${CampusRepository.currentUser.name})`, 'success');
+          // Ensure currentTab is valid for the new role
+          if (this.currentTab === 'oprec' && newRole !== 'student' && newRole !== 'organization') {
+            this.currentTab = 'organizations';
+            this.selectedOrgSubTab = 0;
+          }
+          this.render();
+        });
+      });
+    }
+
+    // Build Role-Adapted Sidebar Menu
+    const roleConfig = this.getRoleSidebarConfig(role, user);
+    if (this.sidebarMenuHeading) {
+      this.sidebarMenuHeading.textContent = roleConfig.heading;
+    }
+
+    if (this.sidebarQuickAction && roleConfig.quickAction) {
+      this.sidebarQuickAction.innerHTML = `
+        <button type="button" class="btn btn-primary btn-block" id="btnSidebarRoleAction" style="font-size: 12.5px; padding: 9px 12px; justify-content: center;">
+          ${roleConfig.quickAction.icon}
+          <span>${roleConfig.quickAction.label}</span>
+        </button>
+      `;
+      const actionBtn = document.getElementById('btnSidebarRoleAction');
+      if (actionBtn) {
+        actionBtn.addEventListener('click', () => roleConfig.quickAction.onClick());
       }
-    });
+    }
+
+    if (this.sidebarNavMenu) {
+      const itemsHtml = roleConfig.items
+        .map(item => {
+          const isActive = this.currentTab === item.tab;
+          return `
+            <li class="nav-item ${isActive ? 'active' : ''}" data-tab="${item.tab}">
+              <div class="nav-item-left">
+                <span class="icon">${item.icon}</span>
+                <span class="nav-item-text">${item.label}</span>
+              </div>
+              ${item.badge !== undefined ? `<span class="nav-badge">${item.badge}</span>` : ''}
+            </li>
+          `;
+        })
+        .join('');
+
+      const logoutHtml = `
+        <li class="nav-item" data-tab="logout" style="margin-top: 10px; border-top: 1px dashed var(--border-color); padding-top: 12px; color: var(--danger);">
+          <div class="nav-item-left">
+            <span class="icon" style="color: var(--danger);">${Icons.auth(18)}</span>
+            <span class="nav-item-text">Keluar / Ganti Akun</span>
+          </div>
+        </li>
+      `;
+
+      this.sidebarNavMenu.innerHTML = itemsHtml + logoutHtml;
+
+      this.sidebarNavMenu.querySelectorAll('[data-tab]').forEach(el => {
+        el.addEventListener('click', () => {
+          const targetTab = el.getAttribute('data-tab');
+          if (!CampusRepository.isLoggedIn && targetTab !== 'auth' && targetTab !== 'logout') {
+            this.showToast('Silakan masuk (login) terlebih dahulu untuk mengakses menu ini', 'info');
+            this.switchTab('auth');
+            return;
+          }
+          this.switchTab(targetTab);
+        });
+      });
+    }
+
+    // Build Role-Adapted Mobile Bottom Navigation
+    if (this.bottomNavTabs) {
+      this.bottomNavTabs.innerHTML = roleConfig.items
+        .slice(0, 6)
+        .map(item => {
+          const isActive = this.currentTab === item.tab;
+          return `
+            <li class="bottom-tab ${isActive ? 'active' : ''}" data-tab="${item.tab}">
+              <span class="tab-icon">${item.icon}</span>
+              <span class="tab-label">${item.mobileLabel || item.label}</span>
+            </li>
+          `;
+        })
+        .join('');
+
+      this.bottomNavTabs.querySelectorAll('[data-tab]').forEach(el => {
+        el.addEventListener('click', () => {
+          const targetTab = el.getAttribute('data-tab');
+          this.switchTab(targetTab);
+        });
+      });
+    }
   }
 
   render() {
@@ -231,6 +445,11 @@ class CampusImpactHubApp {
         this.renderProjectsMarketplace();
         break;
       case 'organizations':
+        this.selectedOrgSubTab = 0;
+        this.renderOrganizationsHub();
+        break;
+      case 'oprec':
+        this.selectedOrgSubTab = 1;
         this.renderOrganizationsHub();
         break;
       case 'events':
@@ -354,7 +573,7 @@ class CampusImpactHubApp {
                     <option value="student" ${user.role === 'student' ? 'selected' : ''}>Mahasiswa (Civitas Akademika)</option>
                     <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Dosen / Admin Pengelola Kampus</option>
                     <option value="organization" ${user.role === 'organization' ? 'selected' : ''}>Pengurus Organisasi / BEM / UKM</option>
-                    <option value="partner" ${user.role === 'partner' ? 'selected' : ''}>Mitra Sosial &amp; Lembaga Pengabdian</option>
+                    <option value="partner" ${user.role === 'partner' ? 'selected' : ''}>UMKM (Usaha Mikro, Kecil &amp; Menengah)</option>
                   </select>
                 </div>
               </div>
@@ -391,13 +610,29 @@ class CampusImpactHubApp {
                 <div class="auth-demo-chips">
                   <div class="auth-demo-chips-title">
                     ${Icons.sparkles(13)}
-                    <span>Akun Demo — Klik untuk Masuk Langsung:</span>
+                    <span>Seed Login Tiap Role (Klik untuk Isi &amp; Masuk Langsung):</span>
                   </div>
-                  <div style="display: flex; flex-wrap: wrap; gap: 6px;">
-                    <button type="button" class="auth-chip-btn" data-auth-demo="student">Mahasiswa</button>
-                    <button type="button" class="auth-chip-btn" data-auth-demo="admin">Dosen / Admin</button>
-                    <button type="button" class="auth-chip-btn" data-auth-demo="organization">Pengurus BEM</button>
-                    <button type="button" class="auth-chip-btn" data-auth-demo="partner">Mitra Lembaga</button>
+                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px;">
+                    <button type="button" class="auth-chip-btn" data-auth-demo="student" style="text-align: left; padding: 8px 10px; display: flex; flex-direction: column; gap: 2px;">
+                      <strong style="font-size: 12px; color: var(--primary);">1. Mahasiswa</strong>
+                      <span style="font-size: 11px; color: var(--neutral-charcoal);">mahasiswa@kampus.ac.id</span>
+                      <span style="font-size: 10.5px; color: var(--neutral-muted);">NIM: 13523001 • Sandi: password123</span>
+                    </button>
+                    <button type="button" class="auth-chip-btn" data-auth-demo="admin" style="text-align: left; padding: 8px 10px; display: flex; flex-direction: column; gap: 2px;">
+                      <strong style="font-size: 12px; color: #0F172A;">2. Dosen / Admin</strong>
+                      <span style="font-size: 11px; color: var(--neutral-charcoal);">dosen@kampus.ac.id</span>
+                      <span style="font-size: 10.5px; color: var(--neutral-muted);">NIP: 19850115... • Sandi: password123</span>
+                    </button>
+                    <button type="button" class="auth-chip-btn" data-auth-demo="organization" style="text-align: left; padding: 8px 10px; display: flex; flex-direction: column; gap: 2px;">
+                      <strong style="font-size: 12px; color: #7C3AED;">3. Pengurus BEM / UKM</strong>
+                      <span style="font-size: 11px; color: var(--neutral-charcoal);">bem@kampus.ac.id</span>
+                      <span style="font-size: 10.5px; color: var(--neutral-muted);">NIM: 13522045 • Sandi: password123</span>
+                    </button>
+                    <button type="button" class="auth-chip-btn" data-auth-demo="partner" style="text-align: left; padding: 8px 10px; display: flex; flex-direction: column; gap: 2px;">
+                      <strong style="font-size: 12px; color: #059669;">4. UMKM</strong>
+                      <span style="font-size: 11px; color: var(--neutral-charcoal);">umkm@kampus.ac.id</span>
+                      <span style="font-size: 10.5px; color: var(--neutral-muted);">ID: UMKM-2026-08 • Sandi: password123</span>
+                    </button>
                   </div>
                 </div>
                 <div class="auth-divider" style="margin: 10px 0;"><span>atau</span></div>
@@ -590,6 +825,23 @@ class CampusImpactHubApp {
         const input = document.getElementById('authPasswordInput');
         if (input) input.type = this.showPassword ? 'text' : 'password';
         btnTogglePass.innerHTML = this.showPassword ? Icons.eyeOff(16) : Icons.eye(16);
+      });
+    }
+
+    // Auto-fill seed credentials when role dropdown changes in Login mode
+    const authRoleSelectEl = document.getElementById('authRoleSelect');
+    if (authRoleSelectEl && !this.isRegisterMode) {
+      authRoleSelectEl.addEventListener('change', () => {
+        const selectedRole = authRoleSelectEl.value;
+        const demoAccounts = CampusRepository.getDefaultDemoAccounts();
+        const target = demoAccounts.find(a => a.role === selectedRole);
+        if (target) {
+          const idInput = document.getElementById('authIdentifierInput');
+          const passInput = document.getElementById('authPasswordInput');
+          if (idInput) idInput.value = target.email;
+          if (passInput) passInput.value = target.password;
+          this.showToast(`Seed akun ${target.name} (${target.email}) dimuat otomatis.`, 'info');
+        }
       });
     }
 
@@ -1072,66 +1324,66 @@ class CampusImpactHubApp {
   }
 
   // =========================================================================
-  // DASHBOARD: MITRA SOSIAL / LEMBAGA (partner)
+  // DASHBOARD: UMKM (partner)
   // =========================================================================
   renderDashboardPartner(user) {
-    const roleMeta = UserRole.PARTNER || { label: 'Mitra Sosial' };
+    const roleMeta = UserRole.PARTNER || { label: 'UMKM' };
     const totalProjects      = CampusRepository.getTotalProjects();
     const totalBeneficiaries = CampusRepository.getTotalBeneficiaries();
 
     const html = `
-      ${this._welcomeHeaderHtml(user, roleMeta.label || 'Mitra Sosial',
-        'Dashboard mitra masyarakat dan lembaga sosial. Ajukan permasalahan nyata untuk dicarikan solusi oleh tim mahasiswa kampus.',
-        `<button id="btnQuickSubmit" class="btn btn-primary" style="flex:1;min-width:155px;">${Icons.plus(15)} Ajukan Permasalahan</button>
-         <button id="btnViewProjects" class="btn btn-secondary" style="flex:1;min-width:155px;">${Icons.project(15)} Lihat Proyek Aktif</button>
-         <button id="btnViewImpact" class="btn btn-outline" style="flex:1;min-width:155px;">${Icons.activity(15)} Rekap Dampak</button>`
+      ${this._welcomeHeaderHtml(user, roleMeta.label || 'UMKM',
+        'Dashboard pelaku Usaha Mikro, Kecil & Menengah (UMKM). Ajukan kebutuhan digitalisasi atau permasalahan usaha Anda untuk dicarikan solusi oleh tim mahasiswa kampus.',
+        `<button id="btnQuickSubmit" class="btn btn-primary" style="flex:1;min-width:155px;">${Icons.plus(15)} Ajukan Kebutuhan UMKM</button>
+         <button id="btnViewProjects" class="btn btn-secondary" style="flex:1;min-width:155px;">${Icons.project(15)} Lihat Proyek UMKM</button>
+         <button id="btnViewImpact" class="btn btn-outline" style="flex:1;min-width:155px;">${Icons.activity(15)} Laporan Dampak</button>`
       )}
 
-      <!-- Dampak Kemitraan -->
+      <!-- Dampak Kolaborasi UMKM -->
       <div class="card" style="background:linear-gradient(135deg,#064E3B 0%,#065F46 100%);color:#FFFFFF;padding:24px;margin-bottom:26px;border-radius:var(--radius-xl);">
-        <div style="font-size:11px;font-weight:700;letter-spacing:0.8px;opacity:0.75;margin-bottom:6px;text-transform:uppercase;">Dampak Kemitraan Kampus</div>
+        <div style="font-size:11px;font-weight:700;letter-spacing:0.8px;opacity:0.75;margin-bottom:6px;text-transform:uppercase;">Dampak Pendampingan UMKM Kampus</div>
         <div style="font-size:26px;font-weight:800;margin-bottom:8px;">${totalBeneficiaries.toLocaleString()} Total Penerima Manfaat</div>
         <div style="font-size:13.5px;opacity:0.85;display:flex;gap:20px;flex-wrap:wrap;">
-          <span>${Icons.project(14)} ${totalProjects} Proyek Berjalan</span>
+          <span>${Icons.project(14)} ${totalProjects} Proyek UMKM Berjalan</span>
           <span style="text-decoration:underline;cursor:pointer;" id="btnPartnerImpactDetail">Lihat Rincian Dampak &rarr;</span>
         </div>
       </div>
 
-      <!-- Panel Mitra -->
+      <!-- Panel UMKM -->
       <div class="section-header">
         <div>
-          <h3 class="section-title">${Icons.users(20)} Panduan Kolaborasi Mitra</h3>
-          <p class="section-subtitle">Langkah-langkah untuk memulai kolaborasi dengan ekosistem kampus.</p>
+          <h3 class="section-title">${Icons.users(20)} Panduan Kolaborasi UMKM</h3>
+          <p class="section-subtitle">Langkah-langkah bagi pelaku UMKM untuk berkolaborasi dengan talenta mahasiswa kampus.</p>
         </div>
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px;margin-bottom:28px;">
         <div class="card" style="padding:20px;cursor:pointer;border-left:3px solid var(--primary);" id="cardPartnerSubmit">
-          <div style="font-size:13px;font-weight:700;color:var(--neutral-dark);margin-bottom:6px;">${Icons.plus(16)} Ajukan Permasalahan</div>
-          <p style="font-size:12.5px;color:var(--neutral-muted);line-height:1.5;">Daftarkan permasalahan UMKM, Desa, atau Komunitas untuk dicarikan solusi oleh mahasiswa.</p>
+          <div style="font-size:13px;font-weight:700;color:var(--neutral-dark);margin-bottom:6px;">${Icons.plus(16)} Ajukan Kebutuhan UMKM</div>
+          <p style="font-size:12.5px;color:var(--neutral-muted);line-height:1.5;">Daftarkan kendala pembukuan, kasir, branding, atau pemasaran UMKM Anda untuk diselesaikan mahasiswa.</p>
           <div style="margin-top:10px;font-size:12px;font-weight:700;color:var(--primary);">Mulai pengajuan &rarr;</div>
         </div>
         <div class="card" style="padding:20px;cursor:pointer;border-left:3px solid var(--success);" id="cardPartnerProjects">
-          <div style="font-size:13px;font-weight:700;color:var(--neutral-dark);margin-bottom:6px;">${Icons.project(16)} Pantau Proyek</div>
-          <p style="font-size:12.5px;color:var(--neutral-muted);line-height:1.5;">Lihat perkembangan proyek pengabdian yang sedang menangani permasalahan Anda.</p>
+          <div style="font-size:13px;font-weight:700;color:var(--neutral-dark);margin-bottom:6px;">${Icons.project(16)} Pantau Proyek UMKM</div>
+          <p style="font-size:12.5px;color:var(--neutral-muted);line-height:1.5;">Lihat perkembangan proyek mahasiswa yang sedang mendampingi usaha UMKM Anda.</p>
           <div style="margin-top:10px;font-size:12px;font-weight:700;color:var(--success);">${totalProjects} proyek aktif &rarr;</div>
         </div>
         <div class="card" style="padding:20px;cursor:pointer;border-left:3px solid #7C3AED;" id="cardPartnerEvents">
-          <div style="font-size:13px;font-weight:700;color:var(--neutral-dark);margin-bottom:6px;">${Icons.event(16)} Ikuti Workshop &amp; Event</div>
-          <p style="font-size:12.5px;color:var(--neutral-muted);line-height:1.5;">Daftarkan partisipasi dalam workshop, pelatihan, dan seminar bersama kampus.</p>
+          <div style="font-size:13px;font-weight:700;color:var(--neutral-dark);margin-bottom:6px;">${Icons.event(16)} Ikuti Workshop UMKM</div>
+          <p style="font-size:12.5px;color:var(--neutral-muted);line-height:1.5;">Daftarkan partisipasi dalam workshop digitalisasi, pelatihan bisnis, dan bazar UMKM kampus.</p>
           <div style="margin-top:10px;font-size:12px;font-weight:700;color:#7C3AED;">Lihat agenda &rarr;</div>
         </div>
         <div class="card" style="padding:20px;cursor:pointer;border-left:3px solid var(--warning);" id="cardPartnerImpact">
-          <div style="font-size:13px;font-weight:700;color:var(--neutral-dark);margin-bottom:6px;">${Icons.activity(16)} Laporan Dampak</div>
-          <p style="font-size:12.5px;color:var(--neutral-muted);line-height:1.5;">Akses laporan dampak terukur dari seluruh proyek kemitraan yang telah berjalan.</p>
+          <div style="font-size:13px;font-weight:700;color:var(--neutral-dark);margin-bottom:6px;">${Icons.activity(16)} Laporan Dampak Usaha</div>
+          <p style="font-size:12.5px;color:var(--neutral-muted);line-height:1.5;">Akses laporan peningkatan efisiensi dan dampak dari proyek pendampingan UMKM.</p>
           <div style="margin-top:10px;font-size:12px;font-weight:700;color:var(--warning);">Unduh laporan &rarr;</div>
         </div>
       </div>
 
-      <!-- Proyek Mitra -->
+      <!-- Proyek UMKM -->
       <div class="section-header">
         <div>
-          <h3 class="section-title">${Icons.project(20)} Proyek Kemitraan Aktif</h3>
-          <p class="section-subtitle">Inisiatif yang melibatkan mitra dalam ekosistem kampus.</p>
+          <h3 class="section-title">${Icons.project(20)} Proyek Pendampingan UMKM Aktif</h3>
+          <p class="section-subtitle">Inisiatif pendampingan UMKM yang sedang berjalan di ekosistem kampus.</p>
         </div>
         ${totalProjects>0?`<button id="btnViewAllProjects" class="section-action">Semua Proyek ${Icons.arrowRight(13)}</button>`:''}
       </div>
@@ -1576,10 +1828,13 @@ class CampusImpactHubApp {
 
     document.getElementById('btnSubTabDirectory').addEventListener('click', () => {
       this.selectedOrgSubTab = 0;
+      this.currentTab = 'organizations';
       this.render();
     });
     document.getElementById('btnSubTabOprec').addEventListener('click', () => {
       this.selectedOrgSubTab = 1;
+      const role = (CampusRepository.currentUser.role || 'student').toLowerCase();
+      this.currentTab = (role === 'student' || role === 'organization') ? 'oprec' : 'organizations';
       this.render();
     });
 
@@ -2573,35 +2828,64 @@ class CampusImpactHubApp {
         </div>
       </div>
 
-      <!-- Cloud Architecture Overview -->
+      <!-- Cloud & Docker Database Architecture Overview -->
       <div class="section-header">
         <div>
           <h3 class="section-title">
-            ${Icons.database(20)} Arsitektur Sistem & Database
+            ${Icons.database(20)} Arsitektur Database PostgreSQL &amp; Docker Container
           </h3>
-          <p class="section-subtitle">Web Frontend &rarr; Supabase API &rarr; Supabase Auth &rarr; PostgreSQL &rarr; Storage Bucket</p>
+          <p class="section-subtitle">Web Frontend (SPA) &rarr; Node.js REST API &rarr; PostgreSQL 16 (Docker Container)</p>
         </div>
+        <span class="pill-badge pill-green">
+          <span class="badge-dot"></span> ${CampusRepository.dbEngine || 'PostgreSQL 16 (Docker)'}
+        </span>
       </div>
 
       <div class="card" style="padding: 22px; margin-bottom: 22px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; margin-bottom: 18px;">
+          <div style="background: var(--surface-alt); border: 1px solid var(--border-color); padding: 12px; border-radius: var(--radius-sm);">
+            <div style="font-size: 11px; color: var(--neutral-muted); font-weight: 700; text-transform: uppercase;">Tabel Users</div>
+            <div style="font-size: 20px; font-weight: 800; color: var(--neutral-dark);">${(CampusRepository.users || []).length} Baris</div>
+          </div>
+          <div style="background: var(--surface-alt); border: 1px solid var(--border-color); padding: 12px; border-radius: var(--radius-sm);">
+            <div style="font-size: 11px; color: var(--neutral-muted); font-weight: 700; text-transform: uppercase;">Tabel Projects</div>
+            <div style="font-size: 20px; font-weight: 800; color: var(--primary);">${CampusRepository.projects.length} Baris</div>
+          </div>
+          <div style="background: var(--surface-alt); border: 1px solid var(--border-color); padding: 12px; border-radius: var(--radius-sm);">
+            <div style="font-size: 11px; color: var(--neutral-muted); font-weight: 700; text-transform: uppercase;">Tabel Organizations</div>
+            <div style="font-size: 20px; font-weight: 800; color: var(--success);">${CampusRepository.organizations.length} Baris</div>
+          </div>
+          <div style="background: var(--surface-alt); border: 1px solid var(--border-color); padding: 12px; border-radius: var(--radius-sm);">
+            <div style="font-size: 11px; color: var(--neutral-muted); font-weight: 700; text-transform: uppercase;">Tabel Recruitments</div>
+            <div style="font-size: 20px; font-weight: 800; color: #7C3AED;">${CampusRepository.openRecruitments.length} Baris</div>
+          </div>
+          <div style="background: var(--surface-alt); border: 1px solid var(--border-color); padding: 12px; border-radius: var(--radius-sm);">
+            <div style="font-size: 11px; color: var(--neutral-muted); font-weight: 700; text-transform: uppercase;">Tabel Events</div>
+            <div style="font-size: 20px; font-weight: 800; color: var(--warning);">${CampusRepository.events.length} Baris</div>
+          </div>
+          <div style="background: var(--surface-alt); border: 1px solid var(--border-color); padding: 12px; border-radius: var(--radius-sm);">
+            <div style="font-size: 11px; color: var(--neutral-muted); font-weight: 700; text-transform: uppercase;">Tabel Portfolio</div>
+            <div style="font-size: 20px; font-weight: 800; color: var(--neutral-dark);">${CampusRepository.portfolioEntries.length} Baris</div>
+          </div>
+        </div>
+
         <p style="font-size: 13px; color: var(--neutral-body); line-height: 1.7; margin-bottom: 16px;">
-          <strong>Struktur Teknis Campus Impact Hub:</strong><br>
-          1. <strong>Frontend:</strong> Single Page Application murni (HTML5, Modern CSS, ES6 Modules, Zero-Dependency)<br>
-          2. <strong>REST & Realtime:</strong> Supabase API & Web Socket Protocol<br>
-          3. <strong>Otentikasi Terpadu:</strong> Supabase Auth dengan Role-Based Access Control<br>
-          4. <strong>Basis Data Relasional:</strong> PostgreSQL (Skema tabel Users, Projects, Organizations, Events, Impact Reports)<br>
-          5. <strong>Media Storage:</strong> Penyimpanan berkas foto lapangan, SK organisasi, dan poster kegiatan
+          <strong>Struktur Teknis &amp; Kontainerisasi Docker:</strong><br>
+          1. <strong>Service <code>app</code> (campus-impact-web):</strong> Node.js 20 Alpine Server + REST API (Port <code>3000</code>)<br>
+          2. <strong>Service <code>db</code> (campus-impact-db):</strong> PostgreSQL 16 Alpine Relational Database (Port <code>5432</code>)<br>
+          3. <strong>Skema Relasional (<code>db/init.sql</code>):</strong> Tabel <code>users</code>, <code>projects</code>, <code>organizations</code>, <code>open_recruitments</code>, <code>events</code>, <code>portfolio_entries</code>, <code>app_session</code><br>
+          4. <strong>Perintah Menjalankan Docker:</strong> <code>docker compose up -d --build</code>
         </p>
 
         <div style="display: flex; gap: 10px; flex-wrap: wrap;">
           <button id="btnViewDbJson" class="btn btn-primary" style="flex: 1; min-width: 160px;">
-            ${Icons.database(15)} Struktur Database JSON (Live Data)
+            ${Icons.database(15)} Inspeksi Isi Database (Live JSON)
           </button>
           <button id="btnLoadDemoData" class="btn btn-secondary" style="flex: 1; min-width: 160px;">
-            ${Icons.sparkles(15)} Muat Data Contoh (Demo)
+            ${Icons.sparkles(15)} Muat Data Contoh ke DB
           </button>
           <button id="btnResetData" class="btn btn-outline" style="border-color: var(--danger); color: var(--danger); flex: 1; min-width: 160px;">
-            ${Icons.refresh(15)} Kosongkan Semua Data
+            ${Icons.refresh(15)} Kosongkan Tabel Database
           </button>
         </div>
       </div>
@@ -2612,57 +2896,72 @@ class CampusImpactHubApp {
     document.getElementById('btnProfileSwitchRole').addEventListener('click', () => this.showRoleSwitcherModal());
 
     document.getElementById('btnLogout').addEventListener('click', () => {
-      CampusRepository.isLoggedIn = false;
-      CampusRepository.saveState();
+      CampusRepository.logout();
       this.showToast('Anda telah keluar dari akun. Silakan masuk kembali.', 'info');
       this.switchTab('auth');
     });
 
-    document.getElementById('btnViewDbJson').addEventListener('click', () => {
-      const jsonStr = CampusRepository.getMvpDatabaseJsonSnapshot();
-      const bodyHtml = `
-        <div style="font-size: 13px; color: var(--neutral-muted); margin-bottom: 10px;">
-          Format data relasional sistem PostgreSQL / Supabase API:
-        </div>
-        <pre style="
-          background: #0F172A;
-          color: #38BDF8;
-          padding: 16px;
-          border-radius: var(--radius-sm);
-          font-family: monospace;
-          font-size: 12px;
-          max-height: 400px;
-          overflow: auto;
-          line-height: 1.45;
-        ">${jsonStr}</pre>
-      `;
-
-      const footerHtml = `
-        <button class="btn btn-outline" onclick="app.closeModal()">Tutup</button>
-        <button id="btnCopyJson" class="btn btn-primary">${Icons.copy(15)} Salin Data JSON</button>
-      `;
-
-      this.openModal('Struktur Database JSON (Supabase)', bodyHtml, footerHtml);
-
-      document.getElementById('btnCopyJson').addEventListener('click', () => {
-        navigator.clipboard.writeText(jsonStr).then(() => {
-          this.showToast('Data JSON berhasil disalin ke clipboard', 'success');
-        });
-      });
-    });
+    document.getElementById('btnViewDbJson').addEventListener('click', () => this.showDatabaseStatusModal());
 
     document.getElementById('btnLoadDemoData').addEventListener('click', () => {
       CampusRepository.loadDemoData();
-      this.showToast('Data contoh (demo) berhasil dimuat', 'success');
+      this.showToast('Data contoh (demo) berhasil disimpan ke Database PostgreSQL', 'success');
       this.render();
     });
 
     document.getElementById('btnResetData').addEventListener('click', () => {
-      if (confirm('Konfirmasi pengosongan seluruh data ke kondisi awal (0)?')) {
+      if (confirm('Konfirmasi pengosongan seluruh tabel data di Database?')) {
         CampusRepository.resetToEmptyState();
-        this.showToast('Seluruh data berhasil dikosongkan ke kondisi awal (0)', 'info');
+        this.showToast('Seluruh tabel data berhasil dikosongkan', 'info');
         this.render();
       }
+    });
+  }
+
+  showDatabaseStatusModal() {
+    const jsonStr = CampusRepository.getMvpDatabaseJsonSnapshot();
+    const bodyHtml = `
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;">
+        <span class="pill-badge pill-green"><span class="badge-dot"></span> Engine: ${CampusRepository.dbEngine || 'PostgreSQL 16 (Docker)'}</span>
+        <span class="pill-badge pill-blue">REST Endpoint: /api/state &amp; /api/health</span>
+      </div>
+      <div style="font-size: 13px; color: var(--neutral-muted); margin-bottom: 10px;">
+        Isi langsung tabel relasional sistem PostgreSQL (<code>users</code>, <code>projects</code>, <code>organizations</code>, <code>open_recruitments</code>, <code>events</code>, <code>portfolio_entries</code>):
+      </div>
+      <pre style="
+        background: #0F172A;
+        color: #38BDF8;
+        padding: 16px;
+        border-radius: var(--radius-sm);
+        font-family: monospace;
+        font-size: 12px;
+        max-height: 400px;
+        overflow: auto;
+        line-height: 1.45;
+      ">${jsonStr}</pre>
+    `;
+
+    const footerHtml = `
+      <button class="btn btn-outline" onclick="app.closeModal()">Tutup</button>
+      <button id="btnSyncNowDb" class="btn btn-secondary">${Icons.refresh(15)} Sinkronisasi dari Server</button>
+      <button id="btnCopyJson" class="btn btn-primary">${Icons.copy(15)} Salin Data JSON</button>
+    `;
+
+    this.openModal('Status & Isi Database PostgreSQL (Docker)', bodyHtml, footerHtml);
+
+    const btnSync = document.getElementById('btnSyncNowDb');
+    if (btnSync) {
+      btnSync.addEventListener('click', async () => {
+        await CampusRepository.syncFromDatabase();
+        this.closeModal();
+        this.showToast('Data berhasil disinkronkan dari Database Server!', 'success');
+      });
+    }
+
+    document.getElementById('btnCopyJson').addEventListener('click', () => {
+      navigator.clipboard.writeText(jsonStr).then(() => {
+        this.showToast('Data JSON berhasil disalin ke clipboard', 'success');
+      });
     });
   }
 

@@ -12,9 +12,9 @@ export const UserRole = {
   },
   PARTNER: {
     code: 'partner',
-    label: 'Mitra Masyarakat',
-    badgeTitle: 'UMKM / Desa / Sekolah / Komunitas',
-    description: 'Submit masalah nyata masyarakat, monitoring proyek mahasiswa, memberikan feedback, dan melihat laporan dampak.'
+    label: 'UMKM',
+    badgeTitle: 'Pelaku Usaha Mikro, Kecil & Menengah (UMKM)',
+    description: 'Mengajukan kebutuhan & masalah usaha UMKM, monitoring proyek mahasiswa, memberikan feedback, dan melihat laporan dampak.'
   },
   ORGANIZATION: {
     code: 'organization',

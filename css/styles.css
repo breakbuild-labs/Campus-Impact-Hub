@@ -1357,3 +1357,178 @@ body.logged-out .app-layout {
   color: var(--primary);
   border-color: var(--primary-border);
 }
+
+/* ==========================================================================
+   Role-Based Left Sidebar Enhancements & Database Status
+   ========================================================================== */
+.app-sidebar {
+  width: 280px;
+}
+
+.sidebar-user-info .role-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  background: var(--primary-light);
+  color: var(--primary);
+  margin-top: 2px;
+}
+
+.sidebar-user-info .role-unit {
+  font-size: 11.5px;
+  color: var(--neutral-muted);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.app-sidebar[data-role="admin"] .sidebar-user-card {
+  border-left: 3.5px solid #0F172A;
+}
+.app-sidebar[data-role="admin"] .sidebar-user-info .role-badge {
+  background: #F1F5F9;
+  color: #0F172A;
+}
+
+.app-sidebar[data-role="organization"] .sidebar-user-card {
+  border-left: 3.5px solid #7C3AED;
+}
+.app-sidebar[data-role="organization"] .sidebar-user-info .role-badge {
+  background: #F5F3FF;
+  color: #7C3AED;
+}
+
+.app-sidebar[data-role="partner"] .sidebar-user-card {
+  border-left: 3.5px solid #059669;
+}
+.app-sidebar[data-role="partner"] .sidebar-user-info .role-badge {
+  background: #ECFDF5;
+  color: #059669;
+}
+
+.app-sidebar[data-role="student"] .sidebar-user-card {
+  border-left: 3.5px solid var(--primary);
+}
+
+.sidebar-section-label {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+  color: var(--neutral-muted);
+  margin: 4px 6px 8px 6px;
+}
+
+.sidebar-role-switcher {
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px dashed var(--border-color);
+}
+
+.sidebar-role-pills {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.sidebar-role-pill {
+  padding: 6px 8px;
+  font-size: 11.5px;
+  font-weight: 600;
+  border-radius: 7px;
+  border: 1px solid var(--border-color);
+  background: var(--surface);
+  color: var(--neutral-body);
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-role-pill:hover {
+  background: var(--surface-alt);
+  border-color: #CBD5E1;
+}
+
+.sidebar-role-pill.active {
+  background: var(--primary);
+  color: #FFFFFF;
+  border-color: var(--primary);
+  font-weight: 700;
+  box-shadow: 0 2px 6px rgba(59, 73, 223, 0.22);
+}
+
+.sidebar-quick-action {
+  margin-bottom: 14px;
+}
+
+.nav-item {
+  justify-content: space-between;
+  padding: 10px 12px;
+  font-size: 13.5px;
+}
+
+.nav-item-left {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  overflow: hidden;
+}
+
+.nav-item-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nav-badge {
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: var(--radius-full);
+  background: var(--surface-alt);
+  color: var(--neutral-charcoal);
+  border: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.nav-item.active .nav-badge {
+  background: var(--primary);
+  color: #FFFFFF;
+  border-color: var(--primary);
+}
+
+.sidebar-db-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 10px;
+  border-radius: 7px;
+  background: var(--surface-alt);
+  border: 1px solid var(--border-color);
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--neutral-dark);
+  cursor: pointer;
+  width: 100%;
+}
+
+.sidebar-db-badge:hover {
+  border-color: var(--primary-border);
+  background: var(--primary-light);
+}
+
+.db-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--success);
+  box-shadow: 0 0 0 2px rgba(5, 150, 105, 0.25);
+  flex-shrink: 0;
+}
+
