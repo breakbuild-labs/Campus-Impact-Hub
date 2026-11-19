@@ -219,11 +219,26 @@ class CampusImpactHubApp {
     this.modalBody.innerHTML = bodyHtml;
     this.modalFooter.innerHTML = footerHtml;
     this.modalFooter.style.display = footerHtml ? 'flex' : 'none';
+    if (this.modalBody) this.modalBody.scrollTop = 0;
     this.modalBackdrop.classList.add('open');
   }
 
   closeModal() {
     this.modalBackdrop.classList.remove('open');
+  }
+
+  _reRenderPreservingFocus(inputId, renderMethod) {
+    const prevEl = document.getElementById(inputId);
+    const selStart = prevEl && typeof prevEl.selectionStart === 'number' ? prevEl.selectionStart : null;
+    const selEnd = prevEl && typeof prevEl.selectionEnd === 'number' ? prevEl.selectionEnd : null;
+    renderMethod.call(this);
+    const nextEl = document.getElementById(inputId);
+    if (nextEl) {
+      nextEl.focus();
+      if (selStart !== null && selEnd !== null && typeof nextEl.setSelectionRange === 'function') {
+        try { nextEl.setSelectionRange(selStart, selEnd); } catch (_) {}
+      }
+    }
   }
 
   // =========================================================================
@@ -412,7 +427,6 @@ class CampusImpactHubApp {
 
     if (this.bottomNavTabs) {
       this.bottomNavTabs.innerHTML = roleConfig.items
-        .slice(0, 6)
         .map(item => {
           const isActive = this.currentTab === item.tab;
           return `
@@ -824,12 +838,13 @@ class CampusImpactHubApp {
               <div style="font-size: 11px; font-weight: 700; color: var(--neutral-muted); text-transform: uppercase; margin-bottom: 8px;">
                 Pengembang
               </div>
-              <div class="about-you-header">
-                <div class="about-you-avatar">BS</div>
+              <div class="about-you-header" style="align-items: flex-start;">
+                <div class="about-you-avatar" style="overflow: hidden; background: #0B0D10; padding: 0;">
+                  <img src="${devProfile.logoUrl || 'assets/breakbuild-labs-logo.png'}" alt="${devProfile.name}" style="width: 100%; height: 100%; object-fit: cover; display: block;">
+                </div>
                 <div class="about-you-meta">
                   <h3>${devProfile.name}</h3>
-                  <p>${devProfile.program} &bull; NIM ${devProfile.nim}</p>
-                  <div style="font-size: 11.5px; color: var(--primary); font-weight: 700;">${devProfile.affiliation}</div>
+                  <p style="font-size: 12.5px; line-height: 1.55; color: var(--neutral-body); font-weight: 500; margin-top: 3px;">${devProfile.about}</p>
                 </div>
               </div>
             </div>
@@ -1218,7 +1233,7 @@ class CampusImpactHubApp {
     this.contentEl.innerHTML = html;
     document.getElementById('inputProjectSearch').addEventListener('input', (e) => {
       this.projectSearchQuery = e.target.value;
-      this.renderStudentProjectsView();
+      this._reRenderPreservingFocus('inputProjectSearch', this.renderStudentProjectsView);
     });
     document.getElementById('selectProjectCat').addEventListener('change', (e) => {
       this.selectedProjectCategoryFilter = e.target.value;
@@ -1423,7 +1438,7 @@ class CampusImpactHubApp {
     this.contentEl.innerHTML = html;
     document.getElementById('inputStudentOrgSearch').addEventListener('input', (e) => {
       this.orgSearchQuery = e.target.value;
-      this.renderStudentOrganizationsView();
+      this._reRenderPreservingFocus('inputStudentOrgSearch', this.renderStudentOrganizationsView);
     });
   }
 
@@ -1559,7 +1574,7 @@ class CampusImpactHubApp {
     this.contentEl.innerHTML = html;
     document.getElementById('inputStudentEventSearch').addEventListener('input', (e) => {
       this.eventSearchQuery = e.target.value;
-      this.renderStudentEventsView();
+      this._reRenderPreservingFocus('inputStudentEventSearch', this.renderStudentEventsView);
     });
     document.getElementById('selectStudentEventType').addEventListener('change', (e) => {
       this.selectedEventTypeFilter = e.target.value;
@@ -1605,7 +1620,7 @@ class CampusImpactHubApp {
         <span class="pill-badge pill-green" style="background:rgba(255,255,255,0.18);color:#fff;margin-bottom:12px;">
           Portofolio Kontribusi &amp; SKPI Terverifikasi (Read-Only / Immutable)
         </span>
-        <h2 style="font-size:24px;font-weight:800;margin-bottom:4px;">${user.name} — NIM ${user.identityNumber}</h2>
+        <h2 style="font-size:24px;font-weight:800;margin-bottom:4px;">${user.name} — NIM ${String(user.identityNumber || '').replace(/^NIM\s+/i, '')}</h2>
         <p style="font-size:13.5px;opacity:0.9;margin-bottom:18px;">
           ${user.studyProgram || user.majorOrUnit} &bull; ${user.faculty}. Poin hanya diberikan setelah aktivitas selesai dan diverifikasi secara resmi.
         </p>
@@ -1692,7 +1707,46 @@ class CampusImpactHubApp {
 
     this.contentEl.innerHTML = html;
     const btnPrint = document.getElementById('btnPrintSkpi');
-    if (btnPrint) btnPrint.addEventListener('click', () => window.print());
+    if (btnPrint) btnPrint.addEventListener('click', () => this.showSkpiPrintPreviewModal(user, userPortfolio, myEvaluations));
+  }
+
+  showSkpiPrintPreviewModal(user, userPortfolio, myEvaluations) {
+    const cleanNim = String(user.identityNumber || '-').replace(/^NIM\s+/i, '');
+    const bodyHtml = `
+      <div id="skpiPrintContainer" style="padding:4px 0;">
+        <div style="text-align:center;border-bottom:2px solid var(--primary);padding-bottom:12px;margin-bottom:14px;">
+          <div style="font-size:16px;font-weight:800;color:var(--neutral-dark);">SURAT KETERANGAN PENDAMPING IJAZAH (SKPI)</div>
+          <div style="font-size:12px;color:var(--neutral-muted);">Rekam Jejak Kontribusi &amp; Dampak Sosial Terverifikasi — Campus Impact Hub</div>
+        </div>
+        <div style="background:var(--surface-alt);padding:12px 16px;border-radius:var(--radius-sm);font-size:13px;margin-bottom:14px;line-height:1.6;">
+          <div><strong>Nama Mahasiswa:</strong> ${user.name}</div>
+          <div><strong>NIM:</strong> ${cleanNim}</div>
+          <div><strong>Program Studi / Fakultas:</strong> ${user.studyProgram || user.majorOrUnit} &bull; ${user.faculty}</div>
+          <div><strong>Total Impact Score Terverifikasi:</strong> ${user.impactScore || 0} Poin</div>
+          <div><strong>Total Leadership Score Terverifikasi:</strong> ${user.leadershipScore || 0} Poin</div>
+        </div>
+        <div style="font-weight:700;font-size:13.5px;margin-bottom:8px;">Daftar Aktivitas &amp; Kontribusi Terverifikasi (${userPortfolio.length}):</div>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;">
+          ${userPortfolio.map((e, i) => `
+            <div style="border-left:3px solid var(--primary);padding-left:10px;font-size:12.5px;">
+              <strong>${i + 1}. ${e.title}</strong> (${e.category} &bull; +${e.impactPoints} Impact${e.leadershipPoints ? `, +${e.leadershipPoints} Leadership` : ''})<br>
+              <span style="color:var(--neutral-muted);">${e.organizationOrPartner} &bull; ${e.date} &bull; Kredensial: ${e.credentialCode}</span>
+            </div>
+          `).join('')}
+        </div>
+        ${myEvaluations && myEvaluations.length ? `
+          <div style="font-weight:700;font-size:13.5px;margin-bottom:6px;">Evaluasi Mitra UMKM (${myEvaluations.length}):</div>
+          ${myEvaluations.map(ev => `<div style="font-size:12.5px;margin-bottom:4px;">&bull; <strong>${ev.projectTitle}</strong> (${ev.partnerName}): Skor Rata-rata <strong>${ev.averageScore}/5.00</strong> — "${ev.comment}"</div>`).join('')}
+        ` : ''}
+      </div>
+    `;
+    const footerHtml = `
+      <button type="button" class="btn btn-outline" id="btnCloseSkpiModal">Tutup</button>
+      <button type="button" class="btn btn-primary" id="btnTriggerBrowserPrint">${Icons.printer(15)} Cetak Dokumen (Print)</button>
+    `;
+    this.openModal(`Pratinjau Dokumen SKPI — ${user.name}`, bodyHtml, footerHtml);
+    document.getElementById('btnCloseSkpiModal').addEventListener('click', () => this.closeModal());
+    document.getElementById('btnTriggerBrowserPrint').addEventListener('click', () => window.print());
   }
 
   // Student Module 6: Profil (Edit Permitted Info & Change Password, Cannot Change Role)
@@ -1712,7 +1766,7 @@ class CampusImpactHubApp {
           <form id="formStudentProfile">
             <div class="form-group">
               <label class="form-label">Peran Akun &amp; NIM (Read-Only)</label>
-              <input type="text" class="form-control" value="Mahasiswa (student) — NIM: ${user.identityNumber || '-'}" disabled style="background:var(--surface-alt);">
+              <input type="text" class="form-control" value="Mahasiswa (student) — NIM: ${String(user.identityNumber || '-').replace(/^NIM\s+/i, '')}" disabled style="background:var(--surface-alt);">
             </div>
             <div class="form-group">
               <label class="form-label">Email Kampus (Read-Only)</label>
@@ -2339,7 +2393,7 @@ class CampusImpactHubApp {
     if (searchInput) {
       searchInput.addEventListener('input', (e) => {
         this.participantSearchQuery = e.target.value;
-        this.renderOrgParticipantsView();
+        this._reRenderPreservingFocus('inputParticipantSearch', this.renderOrgParticipantsView);
       });
     }
     const statusSel = document.getElementById('selectParticipantStatus');
@@ -2949,7 +3003,7 @@ class CampusImpactHubApp {
     this.contentEl.innerHTML = html;
     document.getElementById('inputAdminStudentSearch').addEventListener('input', (e) => {
       this.adminStudentSearch = e.target.value;
-      this.renderAdminStudentsView();
+      this._reRenderPreservingFocus('inputAdminStudentSearch', this.renderAdminStudentsView);
     });
     document.getElementById('selectAdminStudentStatus').addEventListener('change', (e) => {
       this.adminStudentStatusFilter = e.target.value;
@@ -3084,7 +3138,7 @@ class CampusImpactHubApp {
     document.getElementById('btnAdminGoVerifyQueue').addEventListener('click', () => this.switchTab('admin_org_verification'));
     document.getElementById('inputAdminOrgSearch').addEventListener('input', (e) => {
       this.orgSearchQuery = e.target.value;
-      this.renderAdminOrganizationsView();
+      this._reRenderPreservingFocus('inputAdminOrgSearch', this.renderAdminOrganizationsView);
     });
     document.querySelectorAll('.btn-admin-preview-sk').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -3556,7 +3610,7 @@ class CampusImpactHubApp {
     if (dbSearch) {
       dbSearch.addEventListener('input', (e) => {
         this.adminDbSearch = e.target.value;
-        this.renderAdminDatabaseAndSystemView();
+        this._reRenderPreservingFocus('inputAdminDbSearch', this.renderAdminDatabaseAndSystemView);
       });
     }
 
@@ -3733,7 +3787,10 @@ class CampusImpactHubApp {
         <div class="form-group">
           <label class="form-label">Pilih Mahasiswa Terdaftar (Pintasan)</label>
           <select id="maStudentSelect" class="form-control">
-            ${students.map(s => `<option value="${s.identityNumber}">${s.name} — NIM: ${s.identityNumber} (${s.studyProgram || s.majorOrUnit})</option>`).join('')}
+            ${students.map(s => {
+              const cleanNim = String(s.identityNumber || '').replace(/^NIM\s+/i, '');
+              return `<option value="${cleanNim}">${s.name} — NIM: ${cleanNim} (${s.studyProgram || s.majorOrUnit})</option>`;
+            }).join('')}
           </select>
         </div>
       ` : ''}

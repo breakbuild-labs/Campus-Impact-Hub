@@ -19,13 +19,12 @@ const STORAGE_KEY = 'campus_impact_hub_state_v9_enterprise';
 const TOKEN_STORAGE_KEY = 'campus_impact_hub_auth_token';
 
 export const DEVELOPER_PROFILE = {
-  name: 'Budi Santoso',
-  program: 'S1 Teknik Informatika',
-  affiliation: 'Program Beasiswa Santri Berprestasi (PBSB) — Kementerian Agama RI & Mitra Kampus',
-  nim: '13523001',
-  role: 'Mahasiswa Pengembang & Koordinator Inovasi',
-  email: 'budi.santoso@kampus.ac.id',
-  about: 'Mahasiswa santri berprestasi yang berdedikasi membangun platform kolaboratif kampus untuk menghubungkan permasalahan nyata mitra masyarakat (UMKM, Desa, Sekolah), talenta mahasiswa multidisiplin, organisasi kemahasiswaan, dan dampak sosial yang terukur.',
+  name: 'BreakBuild-Labs',
+  initials: 'BB',
+  logoUrl: 'assets/breakbuild-labs-logo.png',
+  role: 'Independent Technology Lab',
+  affiliation: 'https://github.com/breakbuild-labs',
+  about: 'An independent technology lab focused on building innovative software, developer tools, and digital solutions. We turn ideas into practical products through engineering.',
   skills: [
     'Rekayasa Web Terpadu (SPA & Modular JS)',
     'Arsitektur Database PostgreSQL & Docker Container',
@@ -34,10 +33,10 @@ export const DEVELOPER_PROFILE = {
   ],
   interests: [
     'Digitalisasi UMKM & Komunitas',
-    'Pemberdayaan Santri & Kampus Berdampak',
+    'Developer Tools & Digital Solutions',
     'Sistem Informasi Pengabdian Masyarakat'
   ],
-  motto: 'Mewujudkan inovasi digital yang tidak hanya berhenti sebagai transkrip akademik, namun berdampak nyata bagi masyarakat.'
+  motto: 'An independent technology lab focused on building innovative software, developer tools, and digital solutions. We turn ideas into practical products through engineering.'
 };
 
 const DEFAULT_USERS = [

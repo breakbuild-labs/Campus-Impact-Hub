@@ -11,6 +11,7 @@ COPY index.html ./
 COPY server.js ./
 COPY css ./css
 COPY js ./js
+COPY assets ./assets
 COPY db ./db
 
 # Create local data directory for persistent database storage

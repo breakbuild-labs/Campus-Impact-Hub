@@ -736,8 +736,27 @@ function ensureLocalDbInitialized() {
 
 function normalizeLoadedState(parsed) {
   const fallback = getInitialFallbackState();
-  parsed.users = mergeUsersPreservingPasswords(DEFAULT_USERS, parsed.users || []);
-  parsed.organizations = mergeRecordsById(DEMO_ORGANIZATIONS, parsed.organizations || []);
+  parsed.users = mergeUsersPreservingPasswords(DEFAULT_USERS, parsed.users || []).map(u => {
+    if (u && u.identityNumber && (u.role === 'student' || u.role === 'organization')) {
+      u.identityNumber = String(u.identityNumber).replace(/^NIM\s+/i, '').trim();
+    }
+    return u;
+  });
+  if (parsed.currentUser && parsed.currentUser.identityNumber && (parsed.currentUser.role === 'student' || parsed.currentUser.role === 'organization')) {
+    parsed.currentUser.identityNumber = String(parsed.currentUser.identityNumber).replace(/^NIM\s+/i, '').trim();
+  }
+
+  let rawOrgs = Array.isArray(parsed.organizations) ? parsed.organizations : [];
+  // Fix legacy v2.0 ORG001/ORG002 swap where ORG001 had name 'HIMATIF'
+  const org1 = rawOrgs.find(o => o && o.id === 'ORG001');
+  if (org1 && org1.name === 'HIMATIF') {
+    rawOrgs = rawOrgs.map(o => {
+      if (o.id === 'ORG001') return JSON.parse(JSON.stringify(DEMO_ORGANIZATIONS[0]));
+      if (o.id === 'ORG002') return JSON.parse(JSON.stringify(DEMO_ORGANIZATIONS[1]));
+      return o;
+    });
+  }
+  parsed.organizations = mergeRecordsById(DEMO_ORGANIZATIONS, rawOrgs);
   parsed.projects = mergeRecordsById(DEMO_PROJECTS, parsed.projects || []);
   parsed.events = mergeRecordsById(DEMO_EVENTS, parsed.events || []);
   parsed.eventRegistrations = Array.isArray(parsed.eventRegistrations)
