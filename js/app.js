@@ -805,9 +805,6 @@ class CampusImpactHubApp {
           <div class="about-you-panel">
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;">
               <span class="about-you-badge">${Icons.checkCircle(13)} Sistem Terverifikasi</span>
-              <span style="font-size: 11px; font-weight: 700; color: var(--neutral-muted); letter-spacing: 0.5px; text-transform: uppercase;">
-                PBSB KEMENAG RI
-              </span>
             </div>
 
             <div style="margin-bottom: 18px;">
