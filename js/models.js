@@ -1,6 +1,6 @@
 /**
- * Campus Impact Hub - Models & Domain Entities
- * Mirrored from lat.pam.campusimpacthub.model.Models.kt
+ * Campus Impact Hub - Domain Models & Enums
+ * Complete Web Application Domain Model Specification
  */
 
 export const UserRole = {
@@ -8,52 +8,67 @@ export const UserRole = {
     code: 'student',
     label: 'Mahasiswa',
     badgeTitle: 'Talenta & Kontributor Kampus',
-    description: 'Melihat & mendaftar proyek sosial, bergabung organisasi, daftar event (QR Ticket), dan mengelola portofolio dampak.'
-  },
-  PARTNER: {
-    code: 'partner',
-    label: 'UMKM',
-    badgeTitle: 'Pelaku Usaha Mikro, Kecil & Menengah (UMKM)',
-    description: 'Mengajukan kebutuhan & masalah usaha UMKM, monitoring proyek mahasiswa, memberikan feedback, dan melihat laporan dampak.'
+    description: 'Melihat & mendaftar proyek sosial, melihat organisasi terverifikasi, mendaftar event kampus, dan memantau portofolio kontribusi.'
   },
   ORGANIZATION: {
     code: 'organization',
-    label: 'Organisasi / UKM',
-    badgeTitle: 'Pengurus BEM / Himpunan / UKM',
-    description: 'Mendaftarkan organisasi, membuka Open Recruitment, membuat event kampus, monitoring peserta, dan scan absensi QR.'
+    label: 'BEM / UKM',
+    badgeTitle: 'Pengurus Organisasi Kemahasiswaan',
+    description: 'Mendaftarkan organisasi & unggah SK resmi, mengelola profil organisasi, membuat event kampus, dan memvalidasi kehadiran peserta secara manual (Nama/NIM).'
+  },
+  PARTNER: {
+    code: 'partner',
+    label: 'Mitra UMKM',
+    badgeTitle: 'Mitra Masyarakat & Pelaku UMKM',
+    description: 'Mengajukan permasalahan nyata UMKM, memantau progress proyek mahasiswa, dan memberikan penilaian kinerja mahasiswa.'
   },
   ADMIN: {
     code: 'admin',
-    label: 'Admin Kampus',
-    badgeTitle: 'Direktorat Kemahasiswaan & Pengabdian',
-    description: 'Verifikasi organisasi (SK), verifikasi proyek sosial & event, serta monitoring analitik dampak kampus & MBKM.'
+    label: 'Admin / Dosen',
+    badgeTitle: 'Direktorat Kemahasiswaan & Supervisi',
+    description: 'Mengelola mahasiswa, memverifikasi SK organisasi, menyetujui proyek sosial & event kampus, serta mengelola database & audit log sistem.'
   }
 };
 
-export const ProjectStatus = {
-  OPEN: { code: 'OPEN', label: 'Open' },
-  ON_GOING: { code: 'ON_GOING', label: 'On Going' },
-  COMPLETED: { code: 'COMPLETED', label: 'Completed' }
+export const AccountStatus = {
+  ACTIVE: { code: 'Active', label: 'Active' },
+  INACTIVE: { code: 'Inactive', label: 'Inactive' },
+  SUSPENDED: { code: 'Suspended', label: 'Suspended' }
 };
 
 export const VerificationStatus = {
-  PENDING: { code: 'PENDING', label: 'Pending' },
+  DRAFT: { code: 'DRAFT', label: 'Draft' },
+  PENDING: { code: 'PENDING', label: 'Pending Verification' },
   VERIFIED: { code: 'VERIFIED', label: 'Verified' },
   REJECTED: { code: 'REJECTED', label: 'Rejected' }
 };
 
-export const SelectionStage = {
-  PENDAFTARAN: { stepNumber: 1, label: 'Pendaftaran' },
-  ADMINISTRASI: { stepNumber: 2, label: 'Administrasi' },
-  INTERVIEW: { stepNumber: 3, label: 'Interview' },
-  PENGUMUMAN: { stepNumber: 4, label: 'Pengumuman' }
+export const ProjectStatus = {
+  SUBMITTED: { code: 'SUBMITTED', label: 'Submitted' },
+  UNDER_REVIEW: { code: 'UNDER_REVIEW', label: 'Under Review' },
+  OPEN: { code: 'OPEN', label: 'Open' },
+  ON_GOING: { code: 'ON_GOING', label: 'On Going' },
+  COMPLETED: { code: 'COMPLETED', label: 'Completed' },
+  REJECTED: { code: 'REJECTED', label: 'Rejected' }
 };
 
-export const ApplicantStatus = {
-  NONE: { code: 'NONE', label: 'Belum Mendaftar' },
-  PENDING: { code: 'PENDING', label: 'Pending' },
-  ACCEPTED: { code: 'ACCEPTED', label: 'Accepted' },
-  REJECTED: { code: 'REJECTED', label: 'Rejected' }
+export const EventPublicationStatus = {
+  DRAFT: { code: 'DRAFT', label: 'Draft' },
+  PENDING: { code: 'PENDING', label: 'Menunggu Persetujuan' },
+  PUBLISHED: { code: 'PUBLISHED', label: 'Published' },
+  REJECTED: { code: 'REJECTED', label: 'Ditolak' }
+};
+
+export const RegistrationStatus = {
+  REGISTERED: { code: 'Registered', label: 'Terdaftar' },
+  CANCELLED: { code: 'Cancelled', label: 'Dibatalkan' }
+};
+
+export const AttendanceStatus = {
+  REGISTERED: { code: 'Registered', label: 'Terdaftar (Belum Check-In)' },
+  CANCELLED: { code: 'Cancelled', label: 'Dibatalkan' },
+  ATTENDED: { code: 'Attended', label: 'Hadir Terverifikasi' },
+  NO_SHOW: { code: 'No Show', label: 'Tidak Hadir (No Show)' }
 };
 
 export const EventType = {
@@ -65,3 +80,11 @@ export const EventType = {
   KOMPETISI: { code: 'KOMPETISI', label: 'Kompetisi' },
   PELATIHAN: { code: 'PELATIHAN', label: 'Pelatihan' }
 };
+
+export const EvaluationCriteria = [
+  { key: 'workQuality', label: 'Kualitas Pekerjaan (Work Quality)' },
+  { key: 'timeliness', label: 'Ketepatan Waktu (Timeliness)' },
+  { key: 'communication', label: 'Komunikasi & Kolaborasi (Communication)' },
+  { key: 'responsibility', label: 'Tanggung Jawab (Responsibility)' },
+  { key: 'objectiveAchievement', label: 'Pencapaian Tujuan Proyek (Achievement of Objectives)' }
+];

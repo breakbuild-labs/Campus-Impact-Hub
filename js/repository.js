@@ -1,11 +1,22 @@
 /**
  * Campus Impact Hub - CampusRepository
- * Full-Stack PostgreSQL Database Synchronization + LocalStorage Session Cache
+ * Full-Stack Non-Destructive Database Synchronization + Server-Side Auth, RBAC & Data Ownership
  */
 
-import { UserRole, ProjectStatus, VerificationStatus, SelectionStage, ApplicantStatus, EventType } from './models.js';
+import {
+  UserRole,
+  AccountStatus,
+  ProjectStatus,
+  VerificationStatus,
+  EventPublicationStatus,
+  RegistrationStatus,
+  AttendanceStatus,
+  EventType,
+  EvaluationCriteria
+} from './models.js';
 
-const STORAGE_KEY = 'campus_impact_hub_state_v7_db';
+const STORAGE_KEY = 'campus_impact_hub_state_v9_enterprise';
+const TOKEN_STORAGE_KEY = 'campus_impact_hub_auth_token';
 
 export const DEVELOPER_PROFILE = {
   name: 'Budi Santoso',
@@ -19,7 +30,7 @@ export const DEVELOPER_PROFILE = {
     'Rekayasa Web Terpadu (SPA & Modular JS)',
     'Arsitektur Database PostgreSQL & Docker Container',
     'Manajemen Portofolio Dampak Sosial & MBKM',
-    'Integrasi QR Code Deterministik & Presensi'
+    'Sistem Autentikasi Server-Side (scrypt) & RBAC Terpadu'
   ],
   interests: [
     'Digitalisasi UMKM & Komunitas',
@@ -34,11 +45,13 @@ const DEFAULT_USERS = [
     id: 'U-MHS-001',
     name: 'Budi Santoso',
     email: 'mahasiswa@kampus.ac.id',
-    identityNumber: 'NIM 13523001',
-    password: 'password123',
+    identityNumber: '13523001',
     role: 'student',
+    accountStatus: 'Active',
     majorOrUnit: 'S1 Teknik Informatika — PBSB',
+    studyProgram: 'S1 Teknik Informatika',
     faculty: 'Fakultas Ilmu Komputer & Teknologi Informasi',
+    phone: '0812-3456-7890',
     status: 'Mahasiswa Aktif',
     impactScore: 85,
     leadershipScore: 30,
@@ -55,10 +68,12 @@ const DEFAULT_USERS = [
     name: 'Dr. Ir. Hendra Wijaya, M.T.',
     email: 'dosen@kampus.ac.id',
     identityNumber: 'NIP 198501152010121002',
-    password: 'password123',
     role: 'admin',
+    accountStatus: 'Active',
     majorOrUnit: 'Direktorat Kemahasiswaan & Riset',
+    studyProgram: 'Direktorat Kemahasiswaan',
     faculty: 'Direktorat Kemahasiswaan & Pengabdian Masyarakat',
+    phone: '0811-2233-4455',
     status: 'Dosen Pembina & Admin',
     impactScore: 0,
     leadershipScore: 0,
@@ -74,11 +89,13 @@ const DEFAULT_USERS = [
     id: 'U-BEM-003',
     name: 'Rizky Pratama',
     email: 'bem@kampus.ac.id',
-    identityNumber: 'NIM 13522045',
-    password: 'password123',
+    identityNumber: '13522045',
     role: 'organization',
-    majorOrUnit: 'Presiden Mahasiswa BEM',
+    accountStatus: 'Active',
+    majorOrUnit: 'BEM UNIVERSITAS',
+    studyProgram: 'S1 Sistem Informasi',
     faculty: 'Badan Eksekutif Mahasiswa Universitas',
+    phone: '0813-9876-5432',
     status: 'Pengurus Organisasi Resmi',
     impactScore: 60,
     leadershipScore: 60,
@@ -95,10 +112,14 @@ const DEFAULT_USERS = [
     name: 'UMKM Maju Jaya',
     email: 'umkm@kampus.ac.id',
     identityNumber: 'UMKM-2026-08',
-    password: 'password123',
     role: 'partner',
+    accountStatus: 'Active',
+    ownerName: 'H. Ahmad Suryana',
+    address: 'Jl. Dago No. 88, Kec. Coblong, Kota Bandung',
     majorOrUnit: 'Pelaku Usaha Mikro, Kecil & Menengah (UMKM)',
+    studyProgram: 'Kuliner & Ritel Lokal',
     faculty: 'Jaringan Mitra UMKM Kampus Berdampak',
+    phone: '0815-7788-9900',
     status: 'UMKM Terverifikasi',
     impactScore: 0,
     leadershipScore: 0,
@@ -116,40 +137,41 @@ const DEFAULT_USER = JSON.parse(JSON.stringify(DEFAULT_USERS[0]));
 
 const DEFAULT_ACTIVITY_POINT_RULES = [
   {
-    activityName: 'Mengikuti Event Kampus',
+    activityName: 'Peserta Event Kampus Terverifikasi',
     points: 10,
     scoreType: 'Impact Score (+10)',
-    description: 'Hadir dan melakukan pemindaian Tiket QR pada seminar, workshop, webinar, atau volunteer.'
+    description: 'Diberikan setelah mahasiswa terdaftar hadir dan divalidasi secara manual oleh panitia organisasi berdasarkan Nama atau NIM.'
   },
   {
     activityName: 'Panitia Pelaksana Event',
     points: 20,
     scoreType: 'Impact (+20) & Leadership (+20)',
-    description: 'Berkontribusi sebagai koordinator atau panitia pelaksana kegiatan resmi kampus.'
+    description: 'Diberikan setelah kontribusi kepanitiaan divalidasi oleh penyelenggara organisasi atau administrator.'
   },
   {
-    activityName: 'Pengurus Organisasi Kampus',
+    activityName: 'Pengurus Aktif Organisasi Terverifikasi',
     points: 30,
     scoreType: 'Impact (+30) & Leadership (+30)',
-    description: 'Menjadi pengurus aktif UKM, Himpunan Mahasiswa, atau BEM yang terverifikasi SK.'
+    description: 'Menjadi pengurus aktif organisasi kemahasiswaan yang SK-nya telah diverifikasi Admin Kampus.'
   },
   {
-    activityName: 'Anggota Proyek Sosial',
+    activityName: 'Anggota Proyek Sosial Selesai',
     points: 50,
     scoreType: 'Impact Score (+50)',
-    description: 'Terjun langsung menyelesaikan masalah nyata mitra UMKM, sekolah, atau desa binaan.'
+    description: 'Diberikan setelah proyek penyelesaian masalah mitra UMKM selesai dilaksanakan dan diverifikasi.'
   },
   {
-    activityName: 'Ketua Tim Proyek Sosial',
+    activityName: 'Ketua Tim Proyek Sosial Selesai',
     points: 75,
     scoreType: 'Impact (+75) & Leadership (+75)',
-    description: 'Memimpin tim multidisiplin mahasiswa dalam implementasi solusi dampak sosial.'
+    description: 'Diberikan setelah memimpin tim mahasiswa menyelesaikan proyek sosial mitra UMKM hingga tuntas.'
   }
 ];
 
 class CampusRepositoryClass {
   constructor() {
     this.isLoggedIn = false;
+    this.authToken = null;
     this.dbEngine = 'PostgreSQL 16 (Docker)';
     this.isDbConnected = false;
     this.onChangeCallbacks = [];
@@ -173,19 +195,90 @@ class CampusRepositoryClass {
     });
   }
 
+  // --- Centralized RBAC & Data Ownership Guards ---
+  hasRole(...allowedRoles) {
+    if (!this.isLoggedIn || !this.currentUser) return false;
+    const currentRole = (this.currentUser.role || '').toLowerCase();
+    return allowedRoles.map(r => r.toLowerCase()).includes(currentRole);
+  }
+
+  assertRole(allowedRoles, actionLabel = 'aksi ini') {
+    if (!this.isLoggedIn || !this.currentUser) {
+      throw new Error(`Akses ditolak: Silakan login terlebih dahulu untuk melakukan ${actionLabel}.`);
+    }
+    if (!this.hasRole(...allowedRoles)) {
+      const roleLabel = UserRole[(this.currentUser.role || '').toUpperCase()]?.label || this.currentUser.role;
+      throw new Error(`Akses ditolak (RBAC): Peran ${roleLabel} tidak memiliki izin untuk ${actionLabel}.`);
+    }
+  }
+
+  isOwnOrganization(org) {
+    if (!org || !this.currentUser) return false;
+    if (this.hasRole('admin')) return true;
+    if (org.ownerUserId && org.ownerUserId === this.currentUser.id) return true;
+    if (org.contact && this.currentUser.email && org.contact.toLowerCase() === this.currentUser.email.toLowerCase()) return true;
+    if (org.name && this.currentUser.majorOrUnit && org.name.toLowerCase() === this.currentUser.majorOrUnit.toLowerCase()) return true;
+    return false;
+  }
+
+  getMyOrganization() {
+    if (!this.currentUser) return null;
+    return (this.organizations || []).find(o => this.isOwnOrganization(o)) || null;
+  }
+
+  isOwnEvent(event) {
+    if (!event || !this.currentUser) return false;
+    if (this.hasRole('admin')) return true;
+    if (event.ownerUserId && event.ownerUserId === this.currentUser.id) return true;
+    const myOrg = this.getMyOrganization();
+    if (myOrg && (event.organizationId === myOrg.id || (event.organizerName && event.organizerName.toLowerCase() === myOrg.name.toLowerCase()))) {
+      return true;
+    }
+    return false;
+  }
+
+  isOwnProject(project) {
+    if (!project || !this.currentUser) return false;
+    if (this.hasRole('admin')) return true;
+    if (project.ownerUserId && project.ownerUserId === this.currentUser.id) return true;
+    if (project.organizationName && this.currentUser.name && project.organizationName.toLowerCase().includes(this.currentUser.name.toLowerCase())) return true;
+    return false;
+  }
+
+  getAuthHeaders() {
+    const headers = { 'Content-Type': 'application/json' };
+    if (this.authToken) {
+      headers['Authorization'] = `Bearer ${this.authToken}`;
+    }
+    return headers;
+  }
+
   loadState() {
     try {
+      this.authToken = localStorage.getItem(TOKEN_STORAGE_KEY) || null;
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        this.isLoggedIn = parsed.isLoggedIn === true;
+        this.isLoggedIn = Boolean(parsed.isLoggedIn && this.authToken);
         this.currentUser = parsed.currentUser || JSON.parse(JSON.stringify(DEFAULT_USER));
+        delete this.currentUser.password;
         this.projects = Array.isArray(parsed.projects) ? parsed.projects : [];
         this.organizations = Array.isArray(parsed.organizations) ? parsed.organizations : [];
-        this.openRecruitments = Array.isArray(parsed.openRecruitments) ? parsed.openRecruitments : [];
         this.events = Array.isArray(parsed.events) ? parsed.events : [];
+        this.eventRegistrations = Array.isArray(parsed.eventRegistrations) ? parsed.eventRegistrations : [];
+        this.projectRegistrations = Array.isArray(parsed.projectRegistrations) ? parsed.projectRegistrations : [];
+        this.partnerEvaluations = Array.isArray(parsed.partnerEvaluations) ? parsed.partnerEvaluations : [];
         this.portfolioEntries = Array.isArray(parsed.portfolioEntries) ? parsed.portfolioEntries : [];
-        this.users = Array.isArray(parsed.users) && parsed.users.length > 0 ? parsed.users : JSON.parse(JSON.stringify(DEFAULT_USERS));
+        this.auditLogs = Array.isArray(parsed.auditLogs) ? parsed.auditLogs : [];
+        this.systemConfig = parsed.systemConfig || {
+          appName: 'Campus Impact Hub',
+          version: '2.2.0',
+          allowedUploadFormats: ['PDF', 'JPG', 'JPEG', 'PNG'],
+          maxUploadSizeKb: 2048
+        };
+        this.users = Array.isArray(parsed.users) && parsed.users.length > 0
+          ? parsed.users.map(u => { const c = { ...u }; delete c.password; return c; })
+          : JSON.parse(JSON.stringify(DEFAULT_USERS));
         this.activityPointRules = JSON.parse(JSON.stringify(DEFAULT_ACTIVITY_POINT_RULES));
         return;
       }
@@ -194,13 +287,23 @@ class CampusRepositoryClass {
     }
 
     this.isLoggedIn = false;
+    this.authToken = null;
     this.currentUser = JSON.parse(JSON.stringify(DEFAULT_USER));
     this.users = JSON.parse(JSON.stringify(DEFAULT_USERS));
     this.projects = [];
     this.organizations = [];
-    this.openRecruitments = [];
     this.events = [];
+    this.eventRegistrations = [];
+    this.projectRegistrations = [];
+    this.partnerEvaluations = [];
     this.portfolioEntries = [];
+    this.auditLogs = [];
+    this.systemConfig = {
+      appName: 'Campus Impact Hub',
+      version: '2.2.0',
+      allowedUploadFormats: ['PDF', 'JPG', 'JPEG', 'PNG'],
+      maxUploadSizeKb: 2048
+    };
     this.activityPointRules = JSON.parse(JSON.stringify(DEFAULT_ACTIVITY_POINT_RULES));
   }
 
@@ -213,30 +316,37 @@ class CampusRepositoryClass {
       this.isDbConnected = true;
       this.dbEngine = dbData.dbEngine || 'PostgreSQL 16 (Docker)';
 
-      if (Array.isArray(dbData.users) && dbData.users.length > 0) {
-        this.users = dbData.users;
-      }
-      if (Array.isArray(dbData.projects)) {
-        this.projects = dbData.projects;
-      }
-      if (Array.isArray(dbData.organizations)) {
-        this.organizations = dbData.organizations;
-      }
-      if (Array.isArray(dbData.openRecruitments)) {
-        this.openRecruitments = dbData.openRecruitments;
-      }
-      if (Array.isArray(dbData.events)) {
-        this.events = dbData.events;
-      }
-      if (Array.isArray(dbData.portfolioEntries)) {
-        this.portfolioEntries = dbData.portfolioEntries;
-      }
+      if (Array.isArray(dbData.users) && dbData.users.length > 0) this.users = dbData.users;
+      if (Array.isArray(dbData.projects)) this.projects = dbData.projects;
+      if (Array.isArray(dbData.organizations)) this.organizations = dbData.organizations;
+      if (Array.isArray(dbData.events)) this.events = dbData.events;
+      if (Array.isArray(dbData.eventRegistrations)) this.eventRegistrations = dbData.eventRegistrations;
+      if (Array.isArray(dbData.projectRegistrations)) this.projectRegistrations = dbData.projectRegistrations;
+      if (Array.isArray(dbData.partnerEvaluations)) this.partnerEvaluations = dbData.partnerEvaluations;
+      if (Array.isArray(dbData.portfolioEntries)) this.portfolioEntries = dbData.portfolioEntries;
+      if (Array.isArray(dbData.auditLogs)) this.auditLogs = dbData.auditLogs;
+      if (dbData.systemConfig) this.systemConfig = dbData.systemConfig;
 
-      if (this.currentUser && this.currentUser.id) {
-        const matched = this.users.find(u => u.id === this.currentUser.id || u.role === this.currentUser.role);
-        if (matched) {
-          this.currentUser = { ...matched, ...this.currentUser, role: this.currentUser.role };
+      if (this.authToken) {
+        const meRes = await fetch('/api/auth/me', {
+          method: 'GET',
+          headers: this.getAuthHeaders(),
+          cache: 'no-store'
+        });
+        if (meRes.ok) {
+          const meData = await meRes.json();
+          if (meData && meData.user) {
+            this.currentUser = meData.user;
+            this.isLoggedIn = true;
+          }
+        } else if (meRes.status === 401 || meRes.status === 403) {
+          this.authToken = null;
+          this.isLoggedIn = false;
+          localStorage.removeItem(TOKEN_STORAGE_KEY);
         }
+      } else if (this.currentUser && this.currentUser.id) {
+        const matched = this.users.find(u => u.id === this.currentUser.id);
+        if (matched) this.currentUser = { ...matched };
       }
 
       this.saveLocalOnly();
@@ -249,606 +359,549 @@ class CampusRepositoryClass {
 
   saveLocalOnly() {
     try {
+      const safeCurrent = this.currentUser ? { ...this.currentUser } : null;
+      if (safeCurrent) delete safeCurrent.password;
+      const safeUsers = (this.users || []).map(u => {
+        const copy = { ...u };
+        delete copy.password;
+        return copy;
+      });
       const state = {
         isLoggedIn: this.isLoggedIn,
-        currentUser: this.currentUser,
+        currentUser: safeCurrent,
         projects: this.projects,
         organizations: this.organizations,
-        openRecruitments: this.openRecruitments,
         events: this.events,
+        eventRegistrations: this.eventRegistrations,
+        projectRegistrations: this.projectRegistrations,
+        partnerEvaluations: this.partnerEvaluations,
         portfolioEntries: this.portfolioEntries,
-        users: this.users
+        auditLogs: this.auditLogs,
+        systemConfig: this.systemConfig,
+        users: safeUsers
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      if (this.authToken) {
+        localStorage.setItem(TOKEN_STORAGE_KEY, this.authToken);
+      } else {
+        localStorage.removeItem(TOKEN_STORAGE_KEY);
+      }
     } catch (e) {
       console.warn('Gagal menyimpan state ke localStorage:', e);
     }
   }
 
-  saveState() {
-    // Sync currentUser back into users list
-    if (this.currentUser && Array.isArray(this.users)) {
-      const idx = this.users.findIndex(u => u.id === this.currentUser.id);
-      if (idx !== -1) {
-        this.users[idx] = { ...this.users[idx], ...this.currentUser };
-      }
-    }
-
-    this.saveLocalOnly();
-
-    const payload = {
-      isLoggedIn: this.isLoggedIn,
-      currentUser: this.currentUser,
-      projects: this.projects,
-      organizations: this.organizations,
-      openRecruitments: this.openRecruitments,
-      events: this.events,
-      portfolioEntries: this.portfolioEntries,
-      users: this.users
-    };
-
-    fetch('/api/state', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    })
-      .then(r => r.json())
-      .then(data => {
-        if (data && data.dbEngine) {
-          this.isDbConnected = true;
-          this.dbEngine = data.dbEngine;
-        }
-      })
-      .catch(() => {
-        this.isDbConnected = false;
-      });
-  }
-
-  resetToEmptyState() {
-    this.projects = [];
-    this.organizations = [];
-    this.openRecruitments = [];
-    this.events = [];
-    this.portfolioEntries = [];
-    this.users = JSON.parse(JSON.stringify(DEFAULT_USERS));
-    this.activityPointRules = JSON.parse(JSON.stringify(DEFAULT_ACTIVITY_POINT_RULES));
-    this.saveState();
-  }
-
-  loadDemoData() {
-    this.projects = [
-      {
-        id: 'P001',
-        organizationName: 'UMKM Maju Jaya',
-        title: 'Digitalisasi Sistem Pembukuan & Kasir UMKM',
-        description: 'Pencatatan harian masih manual menggunakan buku tulis. Membutuhkan sistem kasir digital dan identitas visual terpadu.',
-        category: 'Teknologi',
-        location: 'Kec. Coblong, Kota Bandung',
-        photoCaption: 'Dokumentasi Toko & Produksi UMKM Maju Jaya',
-        impactScore: 85,
-        requirements: ['2 Informatika', '1 Desain Komunikasi Visual'],
-        status: 'OPEN',
-        verifiedByAdmin: true,
-        applicantCount: 3,
-        userApplicationState: 'NONE',
-        userRoleInProject: 'Anggota Proyek Sosial (+50 Poin)',
-        impactReport: {
-          id: 'I001',
-          projectId: 'P001',
-          beforeCondition: 'Manual (Pembukuan kertas rawan selisih)',
-          afterCondition: 'Digital (Aplikasi POS Terintegrasi)',
-          beneficiaries: 120,
-          sdgCategory: 'SDG 8: Pertumbuhan Ekonomi & Pekerjaan Layak',
-          partnerFeedback: 'Sangat membantu efisiensi pembukuan dan meminimalisir kesalahan stok.'
-        }
-      },
-      {
-        id: 'P002',
-        organizationName: 'Desa Mandiri Sejahtera',
-        title: 'Sistem Informasi Bank Sampah & Smart Village',
-        description: 'Pengelolaan tabungan sampah warga desa dan administrasi surat pengantar RT/RW masih belum terkomputerisasi.',
-        category: 'Lingkungan',
-        location: 'Kab. Bandung Barat',
-        photoCaption: 'Kegiatan Penimbangan Bank Sampah Warga Desa',
-        impactScore: 90,
-        requirements: ['2 Informatika', '1 Teknik Lingkungan'],
-        status: 'ON_GOING',
-        verifiedByAdmin: true,
-        applicantCount: 5,
-        userApplicationState: 'NONE',
-        userRoleInProject: 'Anggota Proyek Sosial (+50 Poin)',
-        impactReport: {
-          id: 'I002',
-          projectId: 'P002',
-          beforeCondition: 'Pencatatan tabungan sampah warga tercecer',
-          afterCondition: 'Dashboard Bank Sampah Digital & Rekap Otomatis',
-          beneficiaries: 350,
-          sdgCategory: 'SDG 11: Kota & Pemukiman Berkelanjutan',
-          partnerFeedback: 'Warga sangat terbantu dengan transparansi saldo tabungan sampah.'
-        }
-      }
-    ];
-
-    this.organizations = [
-      {
-        id: 'ORG001',
-        name: 'HIMATIF',
-        fullName: 'Himpunan Mahasiswa Teknik Informatika',
-        category: 'Teknologi',
-        logoInitials: 'HT',
-        skNumber: 'SK/REKTOR/ORG-001/2026',
-        advisorName: 'Dr. Ir. Hendra Wijaya, M.T.',
-        contact: 'himatif@kampus.ac.id',
-        description: 'Organisasi kemahasiswaan jurusan Teknik Informatika yang berfokus pada software engineering dan pengabdian teknologi.',
-        memberCount: 120,
-        verificationStatus: 'VERIFIED',
-        isUserJoined: true,
-        isUserOfficer: false
-      },
-      {
-        id: 'ORG002',
-        name: 'BEM UNIVERSITAS',
-        fullName: 'Badan Eksekutif Mahasiswa Universitas',
-        category: 'Kepemimpinan & Sosial',
-        logoInitials: 'BEM',
-        skNumber: 'SK/REKTOR/BEM-002/2026',
-        advisorName: 'Dr. Ir. Hendra Wijaya, M.T.',
-        contact: 'bem@kampus.ac.id',
-        description: 'Lembaga eksekutif mahasiswa tingkat universitas yang menggerakkan advokasi, kolaborasi organisasi, dan pengabdian masyarakat.',
-        memberCount: 85,
-        verificationStatus: 'VERIFIED',
-        isUserJoined: false,
-        isUserOfficer: false
-      }
-    ];
-
-    this.openRecruitments = [
-      {
-        id: 'REC001',
-        organizationId: 'ORG001',
-        organizationName: 'HIMATIF',
-        title: 'Open Recruitment Staf & Riset Pengabdian 2026/2027',
-        positions: ['Pengabdian Masyarakat', 'Software Engineering', 'UI/UX Design'],
-        deadline: '20 Desember 2026',
-        status: 'open',
-        currentStage: 'PENDAFTARAN',
-        selectedPosition: null,
-        applicantStatus: 'NONE',
-        totalApplicants: 18
-      },
-      {
-        id: 'REC002',
-        organizationId: 'ORG002',
-        organizationName: 'BEM UNIVERSITAS',
-        title: 'Perekrutan Kementerian Sosial Masyarakat & Inovasi',
-        positions: ['Kementerian Sosmas', 'Riset & Data', 'Media Kreatif'],
-        deadline: '30 Desember 2026',
-        status: 'open',
-        currentStage: 'PENDAFTARAN',
-        selectedPosition: null,
-        applicantStatus: 'NONE',
-        totalApplicants: 24
-      }
-    ];
-
-    this.events = [
-      {
-        id: 'EV001',
-        title: 'Workshop Desain Solusi Digital untuk Dampak Sosial',
-        organizerName: 'HIMATIF',
-        type: 'WORKSHOP',
-        description: 'Pelatihan intensif perancangan solusi teknologi tepat guna bagi mitra UMKM dan desa binaan.',
-        date: '28 November 2026 • 09:00 WIB',
-        location: 'Auditorium Gedung Utama',
-        quota: 150,
-        registeredCount: 42,
-        pointsReward: 10,
-        committeePointsReward: 20,
-        posterSummary: 'Publikasi Resmi: E-Sertifikat Terakreditasi MBKM & +10 Impact Score',
-        verifiedByAdmin: true,
-        isRegistered: false,
-        isAttended: false,
-        qrTicketCode: `CIH-EV001-${this.currentUser.id}`
-      },
-      {
-        id: 'EV002',
-        title: 'Seminar Nasional Kolaborasi Kampus & UMKM Berdaya',
-        organizerName: 'BEM UNIVERSITAS',
-        type: 'SEMINAR',
-        description: 'Forum kolaborasi antara mahasiswa, dosen pembina, dan mitra UMKM untuk akselerasi ekonomi lokal.',
-        date: '05 Desember 2026 • 13:00 WIB',
-        location: 'Aula Barat Kampus Utama',
-        quota: 250,
-        registeredCount: 98,
-        pointsReward: 10,
-        committeePointsReward: 20,
-        posterSummary: 'Terbuka untuk Mahasiswa, Pengurus UKM, Dosen & Mitra Masyarakat',
-        verifiedByAdmin: true,
-        isRegistered: false,
-        isAttended: false,
-        qrTicketCode: `CIH-EV002-${this.currentUser.id}`
-      }
-    ];
-
-    this.saveState();
-  }
-
-  // --- Real-Time Statistics ---
+  // --- Statistics & Relational Queries ---
   getTotalActiveStudents() {
-    if (!this.isLoggedIn) return 0;
-    const applicantSum = this.projects.reduce((acc, p) => acc + (p.applicantCount || 0), 0);
-    return 1 + applicantSum;
+    return (this.users || []).filter(u => (u.role || '').toLowerCase() === 'student' && (u.accountStatus || 'Active') === 'Active').length;
+  }
+
+  getStudentUsers() {
+    return (this.users || []).filter(u => (u.role || '').toLowerCase() === 'student');
   }
 
   getTotalOrganizations() {
-    return this.organizations.length;
+    return (this.organizations || []).length;
+  }
+
+  getVerifiedOrganizations() {
+    return (this.organizations || []).filter(o => o.verificationStatus === 'VERIFIED');
   }
 
   getVerifiedOrganizationsCount() {
-    return this.organizations.filter(o => o.verificationStatus === 'VERIFIED').length;
+    return this.getVerifiedOrganizations().length;
   }
 
   getPendingOrganizationsCount() {
-    return this.organizations.filter(o => o.verificationStatus === 'PENDING').length;
+    return (this.organizations || []).filter(o => o.verificationStatus === 'PENDING').length;
   }
 
   getTotalEvents() {
-    return this.events.length;
+    return (this.events || []).length;
+  }
+
+  getPublishedEvents() {
+    return (this.events || []).filter(e => !e.publicationStatus || e.publicationStatus === 'PUBLISHED');
   }
 
   getTotalProjects() {
-    return this.projects.length;
+    return (this.projects || []).length;
+  }
+
+  getApprovedProjects() {
+    return (this.projects || []).filter(p => ['OPEN', 'ON_GOING', 'COMPLETED'].includes(p.status));
   }
 
   getOpenProjectsCount() {
-    return this.projects.filter(p => p.status === 'OPEN').length;
+    return (this.projects || []).filter(p => p.status === 'OPEN').length;
+  }
+
+  getPendingProjectsCount() {
+    return (this.projects || []).filter(p => ['SUBMITTED', 'UNDER_REVIEW'].includes(p.status)).length;
+  }
+
+  getOngoingProjectsCount() {
+    return (this.projects || []).filter(p => p.status === 'ON_GOING').length;
+  }
+
+  getCompletedProjectsCount() {
+    return (this.projects || []).filter(p => p.status === 'COMPLETED').length;
   }
 
   getTotalBeneficiaries() {
-    return this.projects.reduce((acc, p) => acc + (p.impactReport?.beneficiaries || 0), 0);
+    return (this.projects || []).reduce((acc, p) => acc + (p.impactReport?.beneficiaries || 0), 0);
   }
 
-  // --- Role Switching ---
-  switchRole(roleCode) {
-    const matchedAccount = (this.users || DEFAULT_USERS).find(u => u.role === roleCode) ||
-                           DEFAULT_USERS.find(u => u.role === roleCode);
-
-    if (matchedAccount) {
-      this.currentUser = JSON.parse(JSON.stringify(matchedAccount));
-    } else {
-      this.currentUser.role = roleCode;
-    }
-    this.saveState();
+  getCurrentUserPortfolioEntries() {
+    if (!this.currentUser || !this.currentUser.id) return [];
+    return (this.portfolioEntries || []).filter(e => e.userId === this.currentUser.id);
   }
 
-  // --- Modul A: Social Impact Hub ---
-  applyForProject(projectId, asTeamLeader = false) {
-    const project = this.projects.find(p => p.id === projectId);
-    if (!project) return 'Proyek tidak ditemukan.';
-
-    const pointsEarned = asTeamLeader ? 75 : 50;
-    const roleTitle = asTeamLeader ? 'Ketua Tim Proyek (+75 Poin)' : 'Anggota Proyek Sosial (+50 Poin)';
-
-    project.userApplicationState = 'PENDING';
-    project.userRoleInProject = roleTitle;
-    project.applicantCount = (project.applicantCount || 0) + 1;
-
-    this.currentUser.impactScore = (this.currentUser.impactScore || 0) + pointsEarned;
-    if (asTeamLeader) {
-      this.currentUser.leadershipScore = (this.currentUser.leadershipScore || 0) + 75;
-    }
-    this.currentUser.projectsCompleted = (this.currentUser.projectsCompleted || 0) + 1;
-    this.currentUser.contributionHours = (this.currentUser.contributionHours || 0) + 8;
-
-    this.portfolioEntries.unshift({
-      id: `PF00${this.portfolioEntries.length + 1}`,
-      userId: this.currentUser.id,
-      title: `${asTeamLeader ? 'Ketua Tim' : 'Anggota Pelaksana'}: ${project.title}`,
-      organizationOrPartner: project.organizationName,
-      category: 'Project Sosial',
-      date: 'Baru Saja',
-      impactPoints: pointsEarned,
-      leadershipPoints: asTeamLeader ? 75 : 0,
-      outcomeSummary: `Terdaftar pada inisiatif dampak masyarakat (${project.category}) untuk ${project.impactReport?.beneficiaries || 50} penerima manfaat.`,
-      credentialCode: `APP-${project.id}-${this.currentUser.id}`
-    });
-
-    this.saveState();
-    return `Berhasil mendaftar ke "${project.title}" sebagai ${roleTitle}! Data tersimpan ke Database.`;
+  getStudentEventRegistration(eventId, studentId = this.currentUser?.id) {
+    if (!eventId || !studentId) return null;
+    return (this.eventRegistrations || []).find(r => r.eventId === eventId && r.studentId === studentId) || null;
   }
 
-  submitProblem({ orgName, title, description, category, location, photoLabel, requirementsInput, estimatedBeneficiaries }) {
-    const newId = `P00${this.projects.length + 1}`;
-    const reqList = requirementsInput
-      ? requirementsInput.split(',').map(s => s.trim()).filter(Boolean)
-      : ['2 Informatika', '1 Desain'];
-
-    const benCount = Math.max(10, parseInt(estimatedBeneficiaries, 10) || 50);
-
-    const newProject = {
-      id: newId,
-      organizationName: orgName || 'Mitra Masyarakat Mandiri',
-      title: title || 'Inisiatif Pemberdayaan Sosial',
-      description: description || 'Kendala operasional yang membutuhkan solusi kolaboratif mahasiswa.',
-      category: category || 'Teknologi',
-      location: location || 'Bandung',
-      photoCaption: photoLabel || `Dokumentasi Lapangan: ${orgName}`,
-      impactScore: 85,
-      requirements: reqList.length ? reqList : ['2 Informatika', '1 Desain'],
-      status: 'OPEN',
-      verifiedByAdmin: this.currentUser.role === 'admin',
-      applicantCount: 0,
-      userApplicationState: 'NONE',
-      userRoleInProject: 'Anggota Proyek Sosial (+50 Poin)',
-      impactReport: {
-        id: `I00${this.projects.length + 1}`,
-        projectId: newId,
-        beforeCondition: 'Kondisi awal belum terdigitalisasi',
-        afterCondition: 'Target capaian: Implementasi solusi tepat guna dan pendampingan terstruktur',
-        beneficiaries: benCount,
-        sdgCategory: 'SDG 8 & 11: Pemberdayaan Komunitas Berkelanjutan',
-        partnerFeedback: 'Inisiatif baru didaftarkan dan siap dikerjakan oleh tim mahasiswa.'
-      }
-    };
-
-    this.projects.unshift(newProject);
-    this.currentUser.umkmHelped = (this.currentUser.umkmHelped || 0) + 1;
-    this.currentUser.beneficiariesReached = (this.currentUser.beneficiariesReached || 0) + benCount;
-    this.saveState();
-    return newProject;
+  getStudentProjectRegistration(projectId, studentId = this.currentUser?.id) {
+    if (!projectId || !studentId) return null;
+    return (this.projectRegistrations || []).find(r => r.projectId === projectId && r.studentId === studentId) || null;
   }
 
-  cycleProjectStatus(projectId) {
-    const project = this.projects.find(p => p.id === projectId);
-    if (!project) return null;
-
-    if (project.status === 'OPEN') {
-      project.status = 'ON_GOING';
-    } else if (project.status === 'ON_GOING') {
-      project.status = 'COMPLETED';
-    } else {
-      project.status = 'OPEN';
-    }
-
-    if (project.userApplicationState === 'PENDING' && project.status !== 'OPEN') {
-      project.userApplicationState = 'APPROVED';
-    }
-
-    this.saveState();
-    return project.status;
+  getEventParticipants(eventId) {
+    if (!eventId) return this.eventRegistrations || [];
+    return (this.eventRegistrations || []).filter(r => r.eventId === eventId);
   }
 
-  // --- Modul B: Organization Hub ---
-  registerNewOrganization({ name, fullName, category, skNumber, advisorName, contact, description }) {
-    const initials = (name || 'UKM')
-      .trim()
-      .split(' ')
-      .map(w => w[0]?.toUpperCase())
-      .join('')
-      .slice(0, 3) || 'UKM';
+  // --- Server-Side API Actions ---
+  async login(identifier, password) {
+    const cleanId = (identifier || '').trim();
+    const cleanPass = (password || '').trim();
+    if (!cleanId) return { success: false, message: 'Silakan masukkan Email Kampus atau NIM/NIP Anda.' };
+    if (!cleanPass) return { success: false, message: 'Silakan masukkan kata sandi akun Anda.' };
 
-    const newOrg = {
-      id: `ORG00${this.organizations.length + 1}`,
-      name: name || 'UKM Baru',
-      fullName: fullName || name || 'Unit Kegiatan Mahasiswa',
-      category: category || 'Teknologi',
-      logoInitials: initials,
-      skNumber: skNumber || 'SK/KEMAHASISWAAN/001/2026',
-      advisorName: advisorName || 'Dosen Pembina',
-      contact: contact || 'organisasi@campusimpact.ac.id',
-      description: description || 'Lembaga kemahasiswaan resmi.',
-      memberCount: 1,
-      verificationStatus: this.currentUser.role === 'admin' ? 'VERIFIED' : 'PENDING',
-      isUserJoined: true,
-      isUserOfficer: true
-    };
-
-    this.organizations.unshift(newOrg);
-    this.saveState();
-    return newOrg;
-  }
-
-  verifyOrganization(orgId, approve = true) {
-    const org = this.organizations.find(o => o.id === orgId);
-    if (org) {
-      org.verificationStatus = approve ? 'VERIFIED' : 'REJECTED';
-      this.saveState();
-    }
-  }
-
-  joinOrganizationAsOfficer(orgId) {
-    const org = this.organizations.find(o => o.id === orgId);
-    if (!org) return;
-
-    if (!org.isUserJoined) {
-      org.isUserJoined = true;
-      org.isUserOfficer = true;
-      org.memberCount = (org.memberCount || 0) + 1;
-
-      this.currentUser.impactScore = (this.currentUser.impactScore || 0) + 30;
-      this.currentUser.leadershipScore = (this.currentUser.leadershipScore || 0) + 30;
-
-      this.portfolioEntries.unshift({
-        id: `PF00${this.portfolioEntries.length + 1}`,
-        userId: this.currentUser.id,
-        title: `Pengurus Aktif ${org.name}`,
-        organizationOrPartner: org.fullName,
-        category: 'Organisasi',
-        date: 'Periode Aktif',
-        impactPoints: 30,
-        leadershipPoints: 30,
-        outcomeSummary: `Terdaftar sebagai pengurus resmi organisasi kampus (${org.skNumber}).`,
-        credentialCode: `ORG-MEM-${org.id}`
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier: cleanId, password: cleanPass })
       });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        return {
+          success: false,
+          message: data.message || 'Email/NIM/NIP atau kata sandi tidak sesuai.'
+        };
+      }
 
-      this.saveState();
+      this.authToken = data.token;
+      this.isLoggedIn = true;
+      this.currentUser = data.user;
+      this.saveLocalOnly();
+      await this.syncFromDatabase();
+
+      const roleLabel = UserRole[(this.currentUser.role || '').toUpperCase()]?.label || this.currentUser.role;
+      return {
+        success: true,
+        message: `Selamat datang, ${this.currentUser.name} (${roleLabel})!`,
+        user: this.currentUser
+      };
+    } catch (err) {
+      return {
+        success: false,
+        message: 'Gagal menghubungi server autentikasi. Pastikan server berjalan.'
+      };
     }
   }
 
-  // --- Modul C: Open Recruitment ---
-  createOpenRecruitment({ orgName, title, positionsCsv, deadline }) {
-    const posList = positionsCsv
-      ? positionsCsv.split(',').map(s => s.trim()).filter(Boolean)
-      : ['Divisi Operasional', 'Divisi Hubungan Masyarakat'];
+  async register(payload) {
+    const cleanName = (payload.name || '').trim();
+    const cleanEmail = (payload.email || '').trim().toLowerCase();
+    const cleanPass = (payload.password || '').trim();
+    if (!cleanName) return { success: false, message: 'Nama lengkap / nama lembaga wajib diisi.' };
+    if (!cleanEmail) return { success: false, message: 'Email wajib diisi.' };
+    if (!cleanPass || cleanPass.length < 6) return { success: false, message: 'Kata sandi minimal harus 6 karakter.' };
+    if (payload.passwordConfirm !== undefined && cleanPass !== String(payload.passwordConfirm).trim()) {
+      return { success: false, message: 'Konfirmasi kata sandi tidak cocok.' };
+    }
 
-    const newRec = {
-      id: `REC00${this.openRecruitments.length + 1}`,
-      organizationId: 'ORG001',
-      organizationName: orgName || 'Lembaga Kemahasiswaan',
-      title: title || 'Perekrutan Staf Baru 2027',
-      positions: posList.length ? posList : ['Divisi Inti'],
-      deadline: deadline || '30 September 2027',
-      status: 'open',
-      currentStage: 'PENDAFTARAN',
-      selectedPosition: null,
-      applicantStatus: 'NONE',
-      totalApplicants: 0
-    };
+    try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        return {
+          success: false,
+          message: data.message || 'Gagal mendaftarkan akun baru.'
+        };
+      }
 
-    this.openRecruitments.unshift(newRec);
-    this.saveState();
-    return newRec;
+      this.authToken = data.token;
+      this.isLoggedIn = true;
+      this.currentUser = data.user;
+      this.saveLocalOnly();
+      await this.syncFromDatabase();
+
+      return {
+        success: true,
+        message: `Registrasi berhasil! Selamat datang, ${this.currentUser.name}.`,
+        user: this.currentUser
+      };
+    } catch (err) {
+      return {
+        success: false,
+        message: 'Gagal menghubungi server saat registrasi.'
+      };
+    }
   }
 
-  applyToRecruitment(recId, chosenPosition) {
-    const rec = this.openRecruitments.find(r => r.id === recId);
-    if (!rec) return;
-
-    rec.selectedPosition = chosenPosition;
-    rec.applicantStatus = 'PENDING';
-    rec.currentStage = 'ADMINISTRASI';
-    rec.totalApplicants = (rec.totalApplicants || 0) + 1;
-    this.saveState();
-  }
-
-  advanceRecruitmentSelection(recId, acceptAtEnd = true) {
-    const rec = this.openRecruitments.find(r => r.id === recId);
-    if (!rec) return;
-
-    const stages = ['PENDAFTARAN', 'ADMINISTRASI', 'INTERVIEW', 'PENGUMUMAN'];
-    const currentIdx = stages.indexOf(rec.currentStage);
-
-    if (currentIdx === 0) {
-      rec.currentStage = 'ADMINISTRASI';
-      rec.applicantStatus = 'PENDING';
-    } else if (currentIdx === 1) {
-      rec.currentStage = 'INTERVIEW';
-      rec.applicantStatus = 'PENDING';
-    } else if (currentIdx === 2) {
-      rec.currentStage = 'PENGUMUMAN';
-      rec.applicantStatus = acceptAtEnd ? 'ACCEPTED' : 'REJECTED';
-      if (acceptAtEnd) {
-        this.currentUser.impactScore = (this.currentUser.impactScore || 0) + 30;
-        this.currentUser.leadershipScore = (this.currentUser.leadershipScore || 0) + 30;
-        this.portfolioEntries.unshift({
-          id: `PF00${this.portfolioEntries.length + 1}`,
-          userId: this.currentUser.id,
-          title: `Staf Divisi ${rec.selectedPosition || 'Inti'} — ${rec.organizationName}`,
-          organizationOrPartner: rec.organizationName,
-          category: 'Organisasi',
-          date: 'Lulus Seleksi Perekrutan',
-          impactPoints: 30,
-          leadershipPoints: 30,
-          outcomeSummary: 'Lulus seluruh tahapan seleksi (Pendaftaran, Administrasi, Interview, Pengumuman).',
-          credentialCode: `OPREC-${rec.id}-PASS`
+  async logout() {
+    try {
+      if (this.authToken) {
+        await fetch('/api/auth/logout', {
+          method: 'POST',
+          headers: this.getAuthHeaders()
         });
       }
-    } else {
-      rec.applicantStatus = rec.applicantStatus === 'ACCEPTED' ? 'REJECTED' : 'ACCEPTED';
-    }
-
-    this.saveState();
+    } catch (_) {}
+    this.authToken = null;
+    this.isLoggedIn = false;
+    localStorage.removeItem(TOKEN_STORAGE_KEY);
+    this.saveLocalOnly();
+    this.notifyListeners();
   }
 
-  // --- Modul D: Event Hub & QR Ticket ---
-  createNewEvent({ title, organizer, type, description, date, location, quota, posterCaption }) {
-    const newId = `EV00${this.events.length + 1}`;
-    const safeQuota = Math.max(10, parseInt(quota, 10) || 50);
-
-    const event = {
-      id: newId,
-      title: title || 'Seminar Dampak Kampus',
-      organizerName: organizer || 'Organisasi Kemahasiswaan',
-      type: type || 'WORKSHOP',
-      description: description || 'Kegiatan pengayaan talenta mahasiswa.',
-      date: date || 'Segera',
-      location: location || 'Kampus Utama',
-      quota: safeQuota,
-      registeredCount: 0,
-      pointsReward: 10,
-      committeePointsReward: 20,
-      posterSummary: posterCaption || `Publikasi Resmi: ${title} oleh ${organizer}`,
-      verifiedByAdmin: true,
-      isRegistered: false,
-      isAttended: false,
-      qrTicketCode: `CIH-${newId}-${this.currentUser.id}`
-    };
-
-    this.events.unshift(event);
-    this.saveState();
-    return event;
-  }
-
-  registerForEvent(eventId) {
-    const event = this.events.find(e => e.id === eventId);
-    if (!event) return;
-
-    if (!event.isRegistered) {
-      event.isRegistered = true;
-      event.registeredCount = Math.min(event.quota, (event.registeredCount || 0) + 1);
-      event.qrTicketCode = `CIH-${event.id}-${this.currentUser.id}`;
-      this.saveState();
-    }
-  }
-
-  confirmEventAttendanceByQr(eventId, asCommittee = false) {
-    const event = this.events.find(e => e.id === eventId);
-    if (!event) return 0;
-
-    if (!event.isRegistered) {
-      this.registerForEvent(eventId);
-    }
-    if (event.isAttended) return 0;
-
-    event.isAttended = true;
-    const earnedPoints = asCommittee ? 20 : event.pointsReward;
-    this.currentUser.impactScore = (this.currentUser.impactScore || 0) + earnedPoints;
-    if (asCommittee) {
-      this.currentUser.leadershipScore = (this.currentUser.leadershipScore || 0) + 20;
-    }
-    this.currentUser.contributionHours = (this.currentUser.contributionHours || 0) + 4;
-
-    this.portfolioEntries.unshift({
-      id: `PF00${this.portfolioEntries.length + 1}`,
-      userId: this.currentUser.id,
-      title: `${asCommittee ? 'Panitia Pelaksana' : 'Peserta Hadir Terverifikasi'}: ${event.title}`,
-      organizationOrPartner: event.organizerName,
-      category: 'Sertifikat',
-      date: event.date,
-      impactPoints: earnedPoints,
-      leadershipPoints: asCommittee ? 20 : 0,
-      outcomeSummary: `Kehadiran tervalidasi via Tiket QR (${event.qrTicketCode}).`,
-      credentialCode: `QR-CERT-${event.id}`
+  async updateProfile(payload) {
+    const res = await fetch('/api/profile', {
+      method: 'PUT',
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify(payload)
     });
-
-    this.saveState();
-    return earnedPoints;
+    const data = await res.json();
+    if (!res.ok || !data.success) throw new Error(data.message || 'Gagal memperbarui profil.');
+    await this.syncFromDatabase();
+    return data;
   }
 
-  // --- Modul G: AI Recommendation Hub ---
+  async changePassword(currentPassword, newPassword) {
+    const res = await fetch('/api/auth/change-password', {
+      method: 'POST',
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify({ currentPassword, newPassword })
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) throw new Error(data.message || 'Gagal mengubah kata sandi.');
+    return data;
+  }
+
+  // --- Organizations ---
+  async saveOrganization(payload) {
+    this.assertRole(['organization', 'admin'], 'menyimpan pendaftaran/profil organisasi');
+    const res = await fetch('/api/organizations', {
+      method: 'POST',
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) throw new Error(data.message || 'Gagal menyimpan data organisasi.');
+    await this.syncFromDatabase();
+    return data;
+  }
+
+  async verifyOrganization(orgId, status = 'VERIFIED', rejectionReason = '') {
+    this.assertRole(['admin'], 'memverifikasi legalitas SK organisasi');
+    const res = await fetch('/api/organizations/verify', {
+      method: 'POST',
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify({ orgId, status, rejectionReason })
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) throw new Error(data.message || 'Gagal memproses verifikasi organisasi.');
+    await this.syncFromDatabase();
+    return data;
+  }
+
+  // --- Events & Manual Attendance Validation (No QR) ---
+  async saveEvent(payload) {
+    this.assertRole(['organization', 'admin'], 'menerbitkan atau memperbarui event kampus');
+    const res = await fetch('/api/events', {
+      method: payload.id ? 'PUT' : 'POST',
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) throw new Error(data.message || 'Gagal menyimpan event kampus.');
+    await this.syncFromDatabase();
+    return data;
+  }
+
+  async registerForEvent(eventId) {
+    this.assertRole(['student'], 'mendaftar sebagai peserta event');
+    const res = await fetch('/api/events/register', {
+      method: 'POST',
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify({ eventId, action: 'register' })
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) throw new Error(data.message || 'Gagal mendaftar event.');
+    await this.syncFromDatabase();
+    return data;
+  }
+
+  async cancelEventRegistration(eventId) {
+    this.assertRole(['student'], 'membatalkan pendaftaran event');
+    const res = await fetch('/api/events/register', {
+      method: 'POST',
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify({ eventId, action: 'cancel' })
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) throw new Error(data.message || 'Gagal membatalkan pendaftaran event.');
+    await this.syncFromDatabase();
+    return data;
+  }
+
+  async validateEventAttendanceManual(eventId, { participantQuery, asCommittee = false, attendanceStatus = 'Attended' }) {
+    this.assertRole(['organization', 'admin'], 'memvalidasi kehadiran peserta event secara manual');
+    const cleanQuery = (participantQuery || '').trim();
+    if (!cleanQuery) {
+      throw new Error('Silakan masukkan Nama Lengkap atau NIM peserta yang hadir.');
+    }
+
+    const res = await fetch('/api/events/validate-attendance', {
+      method: 'POST',
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify({ eventId, participantQuery: cleanQuery, asCommittee, attendanceStatus })
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      throw new Error(data.message || 'Gagal memvalidasi kehadiran peserta.');
+    }
+
+    await this.syncFromDatabase();
+    return data;
+  }
+
+  // --- Social Projects & Partner Evaluations ---
+  async submitProblem(payload) {
+    this.assertRole(['partner', 'admin'], 'mengajukan masalah atau proyek sosial baru');
+    const res = await fetch('/api/projects', {
+      method: 'POST',
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) throw new Error(data.message || 'Gagal mengajukan masalah.');
+    await this.syncFromDatabase();
+    return data;
+  }
+
+  async updateProject(payload) {
+    this.assertRole(['partner', 'admin'], 'memperbarui status atau data proyek');
+    const res = await fetch('/api/projects', {
+      method: 'PUT',
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) throw new Error(data.message || 'Gagal memperbarui proyek.');
+    await this.syncFromDatabase();
+    return data;
+  }
+
+  async applyForProject(projectId, asTeamLeader = false) {
+    this.assertRole(['student'], 'mendaftar pada proyek sosial');
+    const res = await fetch('/api/projects/apply', {
+      method: 'POST',
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify({ projectId, asTeamLeader })
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) throw new Error(data.message || 'Gagal mendaftar pada proyek sosial.');
+    await this.syncFromDatabase();
+    return data.message;
+  }
+
+  async submitPartnerEvaluation({ projectId, studentId, ratings, comment }) {
+    this.assertRole(['partner', 'admin'], 'memberikan penilaian kinerja mahasiswa');
+    const res = await fetch('/api/evaluations', {
+      method: 'POST',
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify({ projectId, studentId, ratings, comment })
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) throw new Error(data.message || 'Gagal menyimpan penilaian mahasiswa.');
+    await this.syncFromDatabase();
+    return data;
+  }
+
+  // --- Admin Operations, Data Integrity & Safe Export ---
+  async adminUpdateUser(payload) {
+    this.assertRole(['admin'], 'mengelola akun pengguna');
+    const res = await fetch('/api/admin/users', {
+      method: 'PUT',
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) throw new Error(data.message || 'Gagal memperbarui data pengguna.');
+    await this.syncFromDatabase();
+    return data;
+  }
+
+  async adminUpdateSystemConfig(payload) {
+    this.assertRole(['admin'], 'mengubah konfigurasi sistem');
+    const res = await fetch('/api/admin/system-config', {
+      method: 'PUT',
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) throw new Error(data.message || 'Gagal menyimpan konfigurasi sistem.');
+    await this.syncFromDatabase();
+    return data;
+  }
+
+  async resetToEmptyState() {
+    this.assertRole(['admin'], 'mereset database sistem');
+    const res = await fetch('/api/reset', {
+      method: 'POST',
+      headers: this.getAuthHeaders()
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || 'Gagal mereset database di server.');
+    }
+    await this.syncFromDatabase();
+  }
+
+  async loadDemoData() {
+    this.assertRole(['admin'], 'memuat data demo ke database');
+    const res = await fetch('/api/demo', {
+      method: 'POST',
+      headers: this.getAuthHeaders()
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || 'Gagal memuat data demo di server.');
+    }
+    await this.syncFromDatabase();
+  }
+
+  getDataIntegrityReport() {
+    const issues = [];
+    const seenEmails = new Set();
+    const seenNims = new Set();
+    const userIds = new Set((this.users || []).map(u => u.id));
+    const eventIds = new Set((this.events || []).map(e => e.id));
+    const projectIds = new Set((this.projects || []).map(p => p.id));
+
+    for (const u of (this.users || [])) {
+      if (!u.email || !u.name || !u.role) {
+        issues.push({ type: 'MISSING_FIELD', entity: `User ${u.id}`, detail: 'Field wajib (name/email/role) kosong.' });
+      }
+      const em = (u.email || '').toLowerCase();
+      if (em && seenEmails.has(em)) {
+        issues.push({ type: 'DUPLICATE_ACCOUNT', entity: `User ${u.id}`, detail: `Duplikasi email: ${u.email}` });
+      }
+      seenEmails.add(em);
+
+      if (u.role === 'student' && u.identityNumber) {
+        const nim = u.identityNumber.toLowerCase();
+        if (seenNims.has(nim)) {
+          issues.push({ type: 'DUPLICATE_NIM', entity: `User ${u.id}`, detail: `Duplikasi NIM: ${u.identityNumber}` });
+        }
+        seenNims.add(nim);
+      }
+    }
+
+    for (const reg of (this.eventRegistrations || [])) {
+      if (!eventIds.has(reg.eventId)) {
+        issues.push({ type: 'ORPHANED_RECORD', entity: `EventReg ${reg.id}`, detail: `Merujuk ke eventId tidak ditemukan (${reg.eventId}).` });
+      }
+      if (!userIds.has(reg.studentId)) {
+        issues.push({ type: 'ORPHANED_RECORD', entity: `EventReg ${reg.id}`, detail: `Merujuk ke studentId tidak ditemukan (${reg.studentId}).` });
+      }
+    }
+
+    for (const ev of (this.partnerEvaluations || [])) {
+      if (!projectIds.has(ev.projectId)) {
+        issues.push({ type: 'INVALID_RELATIONSHIP', entity: `Evaluation ${ev.id}`, detail: `Merujuk ke projectId tidak ditemukan (${ev.projectId}).` });
+      }
+    }
+
+    for (const pf of (this.portfolioEntries || [])) {
+      if (!userIds.has(pf.userId)) {
+        issues.push({ type: 'ORPHANED_RECORD', entity: `Portfolio ${pf.id}`, detail: `Merujuk ke userId tidak ditemukan (${pf.userId}).` });
+      }
+    }
+
+    return {
+      healthy: issues.length === 0,
+      checkedAt: new Date().toISOString(),
+      issueCount: issues.length,
+      issues
+    };
+  }
+
+  getSanitizedCollection(collectionName) {
+    const map = {
+      users: (this.users || []).map(u => {
+        const copy = { ...u };
+        delete copy.password;
+        delete copy.passwordHash;
+        return copy;
+      }),
+      students: this.getStudentUsers().map(u => {
+        const copy = { ...u };
+        delete copy.password;
+        delete copy.passwordHash;
+        return copy;
+      }),
+      organizations: (this.organizations || []).map(o => {
+        const copy = { ...o };
+        delete copy.skDocumentData;
+        return copy;
+      }),
+      events: this.events || [],
+      projects: this.projects || [],
+      event_registrations: this.eventRegistrations || [],
+      project_registrations: this.projectRegistrations || [],
+      evaluations: this.partnerEvaluations || [],
+      contributions: this.portfolioEntries || [],
+      audit_logs: this.auditLogs || []
+    };
+    return map[collectionName] || [];
+  }
+
+  exportCollectionToJson(collectionName = 'users') {
+    const rows = this.getSanitizedCollection(collectionName);
+    return JSON.stringify(rows, null, 2);
+  }
+
+  exportCollectionToCsv(collectionName = 'users') {
+    const rows = this.getSanitizedCollection(collectionName);
+    if (!rows.length) return 'id,info\n"EMPTY","Tidak ada data pada tabel ini"';
+    const headers = Object.keys(rows[0]).filter(k => typeof rows[0][k] !== 'object' || rows[0][k] === null);
+    const csvLines = [headers.join(',')];
+    for (const row of rows) {
+      const vals = headers.map(h => {
+        const raw = row[h] === undefined || row[h] === null ? '' : String(row[h]);
+        return `"${raw.replace(/"/g, '""')}"`;
+      });
+      csvLines.push(vals.join(','));
+    }
+    return csvLines.join('\n');
+  }
+
+  // --- AI Recommendation Helper ---
   matchProblemWithAi(problemInput) {
     const cleanInput = (problemInput || 'Digitalisasi sistem pembukuan dan kasir UMKM').trim();
     const lower = cleanInput.toLowerCase();
 
-    if (
-      lower.includes('pemasaran') ||
-      lower.includes('marketing') ||
-      lower.includes('umkm') ||
-      lower.includes('jualan') ||
-      lower.includes('toko') ||
-      lower.includes('kasir') ||
-      lower.includes('pembukuan')
-    ) {
+    if (lower.includes('pemasaran') || lower.includes('marketing') || lower.includes('umkm') || lower.includes('kasir') || lower.includes('pembukuan')) {
       return {
         problemInput: cleanInput,
         category: 'Digital Marketing & Manajemen Usaha',
@@ -858,14 +911,7 @@ class CampusRepositoryClass {
         recommendedSolutionTitle: 'Transformasi Digital Pembukuan & Akselerasi Pemasaran UMKM'
       };
     }
-
-    if (
-      lower.includes('sampah') ||
-      lower.includes('lingkungan') ||
-      lower.includes('desa') ||
-      lower.includes('air') ||
-      lower.includes('tani')
-    ) {
+    if (lower.includes('sampah') || lower.includes('lingkungan') || lower.includes('desa')) {
       return {
         problemInput: cleanInput,
         category: 'Teknologi Lingkungan & Smart Village',
@@ -875,24 +921,6 @@ class CampusRepositoryClass {
         recommendedSolutionTitle: 'Sistem Digitalisasi Bank Sampah & Administrasi Desa'
       };
     }
-
-    if (
-      lower.includes('sekolah') ||
-      lower.includes('pendidikan') ||
-      lower.includes('belajar') ||
-      lower.includes('guru') ||
-      lower.includes('siswa')
-    ) {
-      return {
-        problemInput: cleanInput,
-        category: 'Inovasi Pendidikan & Literasi Digital',
-        recommendedMajors: ['Teknologi Pendidikan', 'Teknik Informatika', 'DKV'],
-        estimatedImpact: 'Tinggi (Estimasi +80 Impact Score)',
-        suggestedImpactScore: 80,
-        recommendedSolutionTitle: 'Platform Modul Pembelajaran Interaktif Sekolah Mitra'
-      };
-    }
-
     return {
       problemInput: cleanInput,
       category: 'Inovasi Teknologi Tepat Guna',
@@ -901,157 +929,6 @@ class CampusRepositoryClass {
       suggestedImpactScore: 85,
       recommendedSolutionTitle: 'Implementasi Sistem Digital & Pemberdayaan Masyarakat'
     };
-  }
-
-  getAiStudentRecommendations(major, interests = []) {
-    const orgs = [];
-    const evts = [];
-    const projs = [];
-
-    this.organizations.forEach(o => orgs.push(o.name));
-    this.events.forEach(e => evts.push(e.title));
-    this.projects.forEach(p => projs.push(p.title));
-
-    if (orgs.length === 0) {
-      orgs.push('Unit Kegiatan Mahasiswa Riset & Teknologi', 'Badan Eksekutif Mahasiswa');
-    }
-    if (evts.length === 0) {
-      evts.push('Workshop Perancangan Proyek Sosial', 'Seminar Akselerasi Karir & MBKM');
-    }
-    if (projs.length === 0) {
-      projs.push('Inisiatif Digitalisasi UMKM Mitra', 'Pengabdian Desa Binaan Lingkungan');
-    }
-
-    return {
-      majorInput: major || 'Mahasiswa',
-      interestsInput: interests,
-      recommendedOrganizations: [...new Set(orgs)].slice(0, 3),
-      recommendedEvents: [...new Set(evts)].slice(0, 3),
-      recommendedProjects: [...new Set(projs)].slice(0, 3)
-    };
-  }
-
-  ensureSeedUsers() {
-    if (!Array.isArray(this.users) || this.users.length === 0) {
-      this.users = JSON.parse(JSON.stringify(DEFAULT_USERS));
-      return;
-    }
-    DEFAULT_USERS.forEach(seed => {
-      const idx = this.users.findIndex(u => u.id === seed.id || u.email.toLowerCase() === seed.email.toLowerCase());
-      if (idx === -1) {
-        this.users.push(JSON.parse(JSON.stringify(seed)));
-      } else {
-        // Ensure seed user always keeps its canonical role, name, email, and identityNumber
-        this.users[idx].id = seed.id;
-        this.users[idx].role = seed.role;
-        this.users[idx].email = seed.email;
-        this.users[idx].name = seed.name;
-        this.users[idx].identityNumber = seed.identityNumber;
-        this.users[idx].majorOrUnit = seed.majorOrUnit;
-      }
-    });
-  }
-
-  // --- Authentication Methods ---
-  login(identifier, password, requestedRole = null) {
-    this.ensureSeedUsers();
-    const cleanId = (identifier || '').trim().toLowerCase();
-    const cleanPass = (password || '').trim();
-    if (!cleanId) return { success: false, message: 'Silakan masukkan Email Kampus atau NIM/NIP Anda.' };
-    if (!cleanPass) return { success: false, message: 'Silakan masukkan kata sandi akun Anda.' };
-
-    let user = this.users.find(u =>
-      u.email.toLowerCase() === cleanId ||
-      (u.identityNumber && u.identityNumber.toLowerCase().includes(cleanId)) ||
-      (cleanId.replace(/[^0-9a-z]/g, '') && u.identityNumber && u.identityNumber.toLowerCase().replace(/[^0-9a-z]/g, '') === cleanId.replace(/[^0-9a-z]/g, ''))
-    );
-
-    const isSeedAccount = user && DEFAULT_USERS.some(s => s.id === user.id || s.email.toLowerCase() === user.email.toLowerCase());
-
-    if (user) {
-      if (user.password && user.password !== cleanPass) {
-        return { success: false, message: 'Kata sandi yang Anda masukkan salah. Silakan periksa kembali.' };
-      }
-      // If user is a custom (non-seed) account and requestedRole is provided, allow updating role
-      if (!isSeedAccount && requestedRole && user.role !== requestedRole) {
-        user.role = requestedRole;
-      }
-    } else {
-      const role = requestedRole || 'student';
-      const roleMeta = UserRole[role.toUpperCase()] || UserRole.STUDENT;
-      const inferredName = cleanId.includes('@')
-        ? cleanId.split('@')[0].replace(/[._-]/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
-        : 'Civitas ' + cleanId;
-      user = {
-        id: 'U-' + Math.random().toString(36).substring(2, 8).toUpperCase(),
-        name: inferredName,
-        email: cleanId.includes('@') ? cleanId : cleanId + '@kampus.ac.id',
-        identityNumber: cleanId.includes('@') ? 'ID-' + Math.floor(100000 + Math.random() * 900000) : cleanId,
-        password: cleanPass,
-        role: role,
-        majorOrUnit: roleMeta.label,
-        faculty: 'Civitas Akademika Kampus Terpadu',
-        status: 'Terautentikasi',
-        impactScore: 0,
-        leadershipScore: 0,
-        projectsCompleted: 0,
-        umkmHelped: 0,
-        beneficiariesReached: 0,
-        contributionHours: 0,
-        bio: 'Pengguna aktif ekosistem Campus Impact Hub.',
-        interests: ['Teknologi Tepat Guna', 'Pengembangan Komunitas'],
-        skills: ['Kolaborasi', 'Pemecahan Masalah']
-      };
-      this.users.push(user);
-    }
-    this.isLoggedIn = true;
-    this.currentUser = JSON.parse(JSON.stringify(user));
-    this.saveState();
-    return { success: true, message: 'Selamat datang, ' + user.name + ' (' + (UserRole[user.role.toUpperCase()]?.label || user.role) + ')! Mengalihkan ke Dashboard...', user: this.currentUser };
-  }
-
-  register({ name, email, identityNumber, role, password, bio, majorOrUnit }) {
-    this.ensureSeedUsers();
-    const cleanEmail = (email || '').trim().toLowerCase();
-    const cleanName = (name || '').trim();
-    const cleanPass = (password || '').trim();
-    if (!cleanName) return { success: false, message: 'Nama lengkap wajib diisi.' };
-    if (!cleanEmail) return { success: false, message: 'Email kampus wajib diisi.' };
-    if (!cleanPass || cleanPass.length < 6) return { success: false, message: 'Kata sandi minimal harus 6 karakter.' };
-    const existing = this.users.find(u => u.email.toLowerCase() === cleanEmail);
-    if (existing) return { success: false, message: 'Email kampus ini sudah terdaftar. Silakan langsung masuk.' };
-    const assignedRole = role || 'student';
-    const roleMeta = UserRole[assignedRole.toUpperCase()] || UserRole.STUDENT;
-    const newUser = {
-      id: 'U-REG-' + Math.random().toString(36).substring(2, 8).toUpperCase(),
-      name: cleanName,
-      email: cleanEmail,
-      identityNumber: (identityNumber || '').trim() || 'NIM-' + Math.floor(10000000 + Math.random() * 90000000),
-      password: cleanPass,
-      role: assignedRole,
-      majorOrUnit: (majorOrUnit || '').trim() || roleMeta.label,
-      faculty: 'Fakultas & Unit Akademik Terdaftar',
-      status: 'Akun Baru Terverifikasi',
-      impactScore: 0,
-      leadershipScore: 0,
-      projectsCompleted: 0,
-      umkmHelped: 0,
-      beneficiariesReached: 0,
-      contributionHours: 0,
-      bio: (bio || '').trim() || 'Pengguna baru terdaftar di Campus Impact Hub.',
-      interests: ['Teknologi Tepat Guna', 'Pengembangan Komunitas'],
-      skills: ['Kolaborasi']
-    };
-    this.users.push(newUser);
-    this.currentUser = JSON.parse(JSON.stringify(newUser));
-    this.isLoggedIn = true;
-    this.saveState();
-    return { success: true, message: 'Pendaftaran berhasil! Data akun tersimpan di Database. Selamat datang, ' + newUser.name + '.', user: this.currentUser };
-  }
-
-  logout() {
-    this.isLoggedIn = false;
-    this.saveState();
   }
 
   getDefaultDemoAccounts() {
@@ -1065,32 +942,38 @@ class CampusRepositoryClass {
   getMvpDatabaseJsonSnapshot() {
     return JSON.stringify(
       {
-        architecture: 'Web Frontend (SPA) -> Node.js REST API -> PostgreSQL 16 (Docker Container)',
+        architecture: 'Web Frontend (SPA) -> Node.js REST API (Scrypt + RBAC + Ownership) -> PostgreSQL 16 / SQLite (Non-Destructive Upsert)',
         database_status: {
           connected: this.isDbConnected,
           engine: this.dbEngine
         },
         session: {
           isLoggedIn: this.isLoggedIn,
-          user_id: this.currentUser.id,
-          role: this.currentUser.role,
-          name: this.currentUser.name
+          user_id: this.currentUser?.id,
+          role: this.currentUser?.role,
+          name: this.currentUser?.name
         },
         table_counts: {
           users: (this.users || []).length,
-          projects: this.projects.length,
-          organizations: this.organizations.length,
-          open_recruitments: this.openRecruitments.length,
-          events: this.events.length,
-          portfolio_entries: this.portfolioEntries.length,
+          projects: (this.projects || []).length,
+          organizations: (this.organizations || []).length,
+          events: (this.events || []).length,
+          event_registrations: (this.eventRegistrations || []).length,
+          project_registrations: (this.projectRegistrations || []).length,
+          partner_evaluations: (this.partnerEvaluations || []).length,
+          portfolio_entries: (this.portfolioEntries || []).length,
+          audit_logs: (this.auditLogs || []).length,
           total_beneficiaries: this.getTotalBeneficiaries()
         },
+        integrity: this.getDataIntegrityReport(),
         tables: {
-          users: this.users,
+          users: this.getSanitizedCollection('users'),
           projects: this.projects,
-          organizations: this.organizations,
-          open_recruitments: this.openRecruitments,
+          organizations: this.getSanitizedCollection('organizations'),
           events: this.events,
+          event_registrations: this.eventRegistrations,
+          project_registrations: this.projectRegistrations,
+          partner_evaluations: this.partnerEvaluations,
           portfolio_entries: this.portfolioEntries
         }
       },
