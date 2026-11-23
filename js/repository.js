@@ -14,6 +14,7 @@ import {
   EventType,
   EvaluationCriteria
 } from './models.js';
+import { FirebaseAuthService } from './firebase-auth.js';
 
 const STORAGE_KEY = 'campus_impact_hub_state_v9_enterprise';
 const TOKEN_STORAGE_KEY = 'campus_impact_hub_auth_token';
@@ -485,6 +486,33 @@ class CampusRepositoryClass {
         body: JSON.stringify({ identifier: cleanId, password: cleanPass })
       });
       const data = await res.json();
+
+      // If local login succeeded and Firebase Auth is configured, also sign in / provision in Firebase Auth
+      if (res.ok && data.success && FirebaseAuthService.isConfigured() && data.user?.email) {
+        try {
+          const fbUser = await FirebaseAuthService.signInOrProvisionEmailPassword(
+            data.user.email,
+            cleanPass,
+            data.user.name
+          );
+          if (fbUser && fbUser.uid) {
+            await fetch('/api/auth/firebase', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(fbUser)
+            });
+          }
+        } catch (_) {}
+      } else if ((!res.ok || !data.success) && FirebaseAuthService.isConfigured() && cleanId.includes('@')) {
+        // If user exists only in Firebase Auth, authenticate via Firebase and bridge to local DB
+        try {
+          const fbUser = await FirebaseAuthService.signInWithEmailPassword(cleanId, cleanPass);
+          if (fbUser && fbUser.idToken) {
+            return await this.loginWithFirebase(fbUser);
+          }
+        } catch (_) {}
+      }
+
       if (!res.ok || !data.success) {
         return {
           success: false,
@@ -508,6 +536,41 @@ class CampusRepositoryClass {
       return {
         success: false,
         message: 'Gagal menghubungi server autentikasi. Pastikan server berjalan.'
+      };
+    }
+  }
+
+  async loginWithFirebase(firebasePayload) {
+    try {
+      const res = await fetch('/api/auth/firebase', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(firebasePayload)
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        return {
+          success: false,
+          message: data.message || 'Gagal memverifikasi sesi Firebase Auth di server.'
+        };
+      }
+
+      this.authToken = data.token;
+      this.isLoggedIn = true;
+      this.currentUser = data.user;
+      this.saveLocalOnly();
+      await this.syncFromDatabase();
+
+      const roleLabel = UserRole[(this.currentUser.role || '').toUpperCase()]?.label || this.currentUser.role;
+      return {
+        success: true,
+        message: `Login Firebase Auth berhasil! Selamat datang, ${this.currentUser.name} (${roleLabel}).`,
+        user: this.currentUser
+      };
+    } catch (err) {
+      return {
+        success: false,
+        message: 'Gagal menyinkronkan login Firebase dengan server.'
       };
     }
   }
@@ -541,6 +604,21 @@ class CampusRepositoryClass {
       this.isLoggedIn = true;
       this.currentUser = data.user;
       this.saveLocalOnly();
+
+      // Sync newly registered user to Firebase Authentication
+      if (FirebaseAuthService.isConfigured() && cleanEmail && cleanPass) {
+        try {
+          const fbUser = await FirebaseAuthService.registerWithEmailPassword(cleanEmail, cleanPass, cleanName);
+          if (fbUser && fbUser.uid) {
+            await fetch('/api/auth/firebase', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ...fbUser, role: data.user?.role })
+            });
+          }
+        } catch (_) {}
+      }
+
       await this.syncFromDatabase();
 
       return {
@@ -557,6 +635,9 @@ class CampusRepositoryClass {
   }
 
   async logout() {
+    try {
+      await FirebaseAuthService.signOut();
+    } catch (_) {}
     try {
       if (this.authToken) {
         await fetch('/api/auth/logout', {

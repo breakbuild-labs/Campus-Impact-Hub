@@ -1,0 +1,15 @@
+{
+  "auth": {
+    "providers": {
+      "anonymous": false,
+      "emailPassword": true,
+      "googleSignIn": {
+        "oAuthBrandDisplayName": "Campus Impact Hub",
+        "supportEmail": "admin@kampus.ac.id",
+        "authorizedRedirectUris": [
+          "http://localhost:3000"
+        ]
+      }
+    }
+  }
+}

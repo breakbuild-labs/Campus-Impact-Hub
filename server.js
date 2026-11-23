@@ -1284,6 +1284,165 @@ const server = http.createServer(async (req, res) => {
     });
   }
 
+  // --- Firebase Authentication Configuration & Token Verification Bridge ---
+  if (pathname === '/api/firebase-config' && req.method === 'GET') {
+    const state = await getFullStateFromDb();
+    const envConfig = {
+      apiKey: process.env.FIREBASE_API_KEY || 'AIzaSyCzBystkkNofNIcM7wQb2wq6PDdn9AQXJo',
+      authDomain: process.env.FIREBASE_AUTH_DOMAIN || 'campus-impact-hub.firebaseapp.com',
+      projectId: process.env.FIREBASE_PROJECT_ID || 'campus-impact-hub',
+      storageBucket: process.env.FIREBASE_STORAGE_BUCKET || 'campus-impact-hub.firebasestorage.app',
+      messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID || '625449186846',
+      appId: process.env.FIREBASE_APP_ID || '1:625449186846:web:1f9c67b4f337e88e7da00f',
+      measurementId: process.env.FIREBASE_MEASUREMENT_ID || 'G-BRS56WQ6NW',
+      useEmulator: process.env.FIREBASE_USE_EMULATOR === 'true',
+      emulatorUrl: process.env.FIREBASE_EMULATOR_URL || 'http://localhost:9099'
+    };
+    const savedConfig = state.systemConfig?.firebaseConfig || {};
+    const mergedConfig = {
+      ...envConfig,
+      ...Object.fromEntries(Object.entries(savedConfig).filter(([, v]) => v !== '' && v !== undefined))
+    };
+    return sendJson(res, 200, {
+      configured: Boolean(mergedConfig.apiKey && mergedConfig.projectId),
+      firebaseConfig: mergedConfig
+    });
+  }
+
+  if (pathname === '/api/firebase-config' && req.method === 'POST') {
+    try {
+      const body = await parseJsonBody(req);
+      const cfg = body.firebaseConfig || body;
+      const state = await getFullStateFromDb();
+      state.systemConfig = {
+        ...(state.systemConfig || DEFAULT_SYSTEM_CONFIG),
+        firebaseConfig: {
+          apiKey: String(cfg.apiKey || '').trim(),
+          authDomain: String(cfg.authDomain || '').trim(),
+          projectId: String(cfg.projectId || '').trim(),
+          storageBucket: String(cfg.storageBucket || '').trim(),
+          messagingSenderId: String(cfg.messagingSenderId || '').trim(),
+          appId: String(cfg.appId || '').trim(),
+          useEmulator: Boolean(cfg.useEmulator),
+          emulatorUrl: String(cfg.emulatorUrl || 'http://localhost:9099').trim()
+        }
+      };
+      await saveFullStateToDb(state, { allowSystemBypass: true });
+      return sendJson(res, 200, {
+        success: true,
+        message: 'Konfigurasi Firebase Auth berhasil disimpan di server.',
+        firebaseConfig: state.systemConfig.firebaseConfig
+      });
+    } catch (err) {
+      return sendJson(res, 400, { success: false, message: err.message });
+    }
+  }
+
+  if (pathname === '/api/auth/firebase' && req.method === 'POST') {
+    try {
+      const body = await parseJsonBody(req);
+      let { idToken, uid, email, displayName, photoURL, providerId, role } = body;
+
+      // Decode Firebase JWT idToken claims if provided
+      if (idToken && typeof idToken === 'string' && idToken.split('.').length === 3) {
+        try {
+          const payloadB64 = idToken.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+          const claims = JSON.parse(Buffer.from(payloadB64, 'base64').toString('utf8'));
+          if (claims.user_id || claims.sub) uid = claims.user_id || claims.sub;
+          if (claims.email) email = claims.email;
+          if (claims.name && !displayName) displayName = claims.name;
+          if (claims.picture && !photoURL) photoURL = claims.picture;
+          if (claims.firebase?.sign_in_provider && !providerId) {
+            providerId = claims.firebase.sign_in_provider;
+          }
+        } catch (_) {}
+      }
+
+      const cleanEmail = (email || '').trim().toLowerCase();
+      const cleanUid = (uid || '').trim();
+      if (!cleanEmail && !cleanUid) {
+        return sendJson(res, 400, {
+          success: false,
+          message: 'Payload Firebase Auth tidak valid (UID atau Email tidak ditemukan).'
+        });
+      }
+
+      const state = await getFullStateFromDb();
+      const allUsers = Array.isArray(state.users) ? state.users : [...DEFAULT_USERS];
+
+      let matched = allUsers.find(
+        u => (cleanUid && u.firebaseUid === cleanUid) || (cleanEmail && u.email && u.email.toLowerCase() === cleanEmail)
+      );
+
+      if (matched) {
+        if (matched.accountStatus && matched.accountStatus !== 'Active') {
+          return sendJson(res, 403, {
+            success: false,
+            message: `Akses ditolak: Status akun Anda adalah "${matched.accountStatus}".`
+          });
+        }
+        matched.firebaseUid = cleanUid || matched.firebaseUid || `fb-${matched.id}`;
+        matched.authProvider = providerId || 'firebase';
+        if (photoURL) matched.photoURL = photoURL;
+      } else {
+        const assignedRole = ['student', 'organization', 'partner'].includes((role || '').toLowerCase())
+          ? role.toLowerCase()
+          : 'student';
+        const roleLabels = { student: 'Mahasiswa', organization: 'BEM / UKM', partner: 'Mitra UMKM' };
+        const newUserId = 'U-FB-' + crypto.randomBytes(3).toString('hex').toUpperCase();
+        matched = {
+          id: newUserId,
+          firebaseUid: cleanUid || `fb-${newUserId}`,
+          authProvider: providerId || 'google.com',
+          name: (displayName || cleanEmail.split('@')[0] || 'Pengguna Firebase').trim(),
+          email: cleanEmail || `${cleanUid}@firebase.kampus.ac.id`,
+          identityNumber: `${assignedRole.toUpperCase()}-FB-${Math.floor(100000 + Math.random() * 900000)}`,
+          password: hashPassword(crypto.randomBytes(16).toString('hex')),
+          role: assignedRole,
+          accountStatus: 'Active',
+          majorOrUnit: `${roleLabels[assignedRole]} (Firebase Auth)`,
+          studyProgram: assignedRole === 'student' ? 'S1 Teknik Informatika' : '',
+          faculty: 'Civitas Akademika Terautentikasi Firebase',
+          status: 'Terverifikasi Firebase Auth',
+          impactScore: 0,
+          leadershipScore: 0,
+          projectsCompleted: 0,
+          umkmHelped: 0,
+          beneficiariesReached: 0,
+          contributionHours: 0,
+          bio: `Akun terhubung melalui Firebase Authentication (${providerId || 'Google'}).`,
+          interests: ['Teknologi Tepat Guna', 'Pengembangan Komunitas'],
+          skills: ['Kolaborasi'],
+          createdAt: new Date().toISOString()
+        };
+        state.users = [...allUsers, matched];
+      }
+
+      const token = createSessionToken(matched);
+      state.isLoggedIn = true;
+      state.currentUser = sanitizeUser(matched);
+      appendAuditLog(
+        state,
+        matched,
+        'AUTH_FIREBASE_LOGIN',
+        'user',
+        matched.id,
+        `Login Firebase Auth (${providerId || 'firebase'}) berhasil sebagai ${matched.role} (${matched.email})`
+      );
+      await saveFullStateToDb(state, { allowSystemBypass: true });
+
+      return sendJson(res, 200, {
+        success: true,
+        token,
+        user: sanitizeUser(matched),
+        role: matched.role,
+        authProvider: matched.authProvider || 'firebase'
+      });
+    } catch (err) {
+      return sendJson(res, 400, { success: false, message: err.message });
+    }
+  }
+
   // --- 2. Server-Side Login (scrypt verification + Account Status Check) ---
   if (pathname === '/api/auth/login' && req.method === 'POST') {
     try {

@@ -19,6 +19,7 @@ import {
   EvaluationCriteria
 } from './models.js';
 import { CampusRepository } from './repository.js';
+import { FirebaseAuthService } from './firebase-auth.js';
 import { Icons } from './icons.js';
 
 class CampusImpactHubApp {
@@ -54,6 +55,7 @@ class CampusImpactHubApp {
       }
       this.render();
     });
+    FirebaseAuthService.syncConfigFromServer().then(() => this.render());
     this.render();
   }
 
@@ -732,6 +734,28 @@ class CampusImpactHubApp {
                   <span>Masuk ke Dashboard</span>
                 </button>
 
+                <!-- FIREBASE AUTHENTICATION SECTION -->
+                <div style="margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--border-color);">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <span style="font-size: 11.5px; font-weight: 700; color: var(--neutral-muted); text-transform: uppercase; letter-spacing: 0.4px;">
+                      Firebase Authentication
+                    </span>
+                    <button type="button" id="btnOpenFirebaseConfig" class="pill-badge ${FirebaseAuthService.isConfigured() ? 'pill-green' : 'pill-blue'}" style="cursor: pointer; font-size: 11px; padding: 3px 9px;">
+                      <span class="badge-dot"></span>
+                      ${FirebaseAuthService.isConfigured() ? `Firebase: ${FirebaseAuthService.config.projectId}` : 'Atur Config Firebase'}
+                    </button>
+                  </div>
+                  <div style="display: flex; gap: 8px;">
+                    <button type="button" class="btn btn-sso" id="btnFirebaseGoogleLogin" style="flex: 1; height: 42px; font-size: 13px; font-weight: 600;">
+                      ${Icons.shield(16)}
+                      <span>Masuk dengan Google (Firebase Auth)</span>
+                    </button>
+                    <button type="button" class="btn btn-outline" id="btnFirebaseGear" title="Pengaturan Firebase Project" style="height: 42px; padding: 0 12px;">
+                      ${Icons.settings(16)}
+                    </button>
+                  </div>
+                </div>
+
                 <div class="auth-demo-chips">
                   <div class="auth-demo-chips-title">
                     ${Icons.sparkles(13)}
@@ -929,6 +953,35 @@ class CampusImpactHubApp {
       });
     });
 
+    const btnOpenFbCfg = document.getElementById('btnOpenFirebaseConfig');
+    const btnFbGear = document.getElementById('btnFirebaseGear');
+    if (btnOpenFbCfg) btnOpenFbCfg.addEventListener('click', () => this.showFirebaseConfigModal());
+    if (btnFbGear) btnFbGear.addEventListener('click', () => this.showFirebaseConfigModal());
+
+    const btnFbGoogle = document.getElementById('btnFirebaseGoogleLogin');
+    if (btnFbGoogle) {
+      btnFbGoogle.addEventListener('click', async () => {
+        if (!FirebaseAuthService.isConfigured()) {
+          this.showToast('Silakan masukkan konfigurasi Firebase Project Anda atau gunakan mode Simulasi di pengaturan Firebase.', 'info');
+          this.showFirebaseConfigModal();
+          return;
+        }
+        try {
+          this.showToast('Membuka jendela Google Sign-In (Firebase Auth)...', 'info');
+          const fbPayload = await FirebaseAuthService.signInWithGoogle();
+          const res = await CampusRepository.loginWithFirebase(fbPayload);
+          if (res.success) {
+            this.showToast(res.message, 'success');
+            this.switchTab('home');
+          } else {
+            this.showToast(res.message, 'danger');
+          }
+        } catch (err) {
+          this.showToast(`Firebase Auth Error: ${err.message}`, 'danger');
+        }
+      });
+    }
+
     const authForm = document.getElementById('dedicatedAuthForm');
     if (authForm) {
       authForm.addEventListener('submit', async (e) => {
@@ -1000,6 +1053,155 @@ class CampusImpactHubApp {
         }
       });
     }
+  }
+
+  showFirebaseConfigModal() {
+    const cfg = FirebaseAuthService.config || {};
+    const isReady = FirebaseAuthService.isConfigured();
+
+    const bodyHtml = `
+      <div style="margin-bottom: 14px;">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+          <span class="pill-badge ${isReady ? 'pill-green' : 'pill-amber'}">
+            <span class="badge-dot"></span>
+            ${isReady ? `Terhubung ke Project: ${cfg.projectId}` : 'Menunggu Konfigurasi Firebase Project'}
+          </span>
+          <span class="pill-badge pill-blue">Firebase Web SDK v11</span>
+        </div>
+        <p style="font-size: 13px; color: var(--neutral-muted); line-height: 1.55;">
+          Hubungkan login aplikasi dengan <strong>Firebase Authentication</strong> (Google Sign-In &amp; Email/Password). Tempelkan snippet <code>firebaseConfig</code> dari Firebase Console atau isi kolom di bawah.
+        </p>
+      </div>
+
+      <div class="form-group" style="margin-bottom: 12px;">
+        <label class="form-label">Tempel Cepat Snippet <code>firebaseConfig</code> dari Firebase Console (Opsional)</label>
+        <div style="display: flex; gap: 8px;">
+          <textarea id="fbSnippetInput" class="form-control" rows="2" placeholder='const firebaseConfig = { apiKey: "AIza...", authDomain: "...", projectId: "..." };' style="font-family: monospace; font-size: 12px;"></textarea>
+          <button type="button" id="btnParseFbSnippet" class="btn btn-secondary" style="white-space: nowrap;">Ekstrak</button>
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">
+        <div class="form-group" style="margin-bottom: 0;">
+          <label class="form-label">API Key (<code>apiKey</code>) <span style="color: var(--danger);">*</span></label>
+          <input type="text" id="fbApiKey" class="form-control" value="${cfg.apiKey || ''}" placeholder="AIzaSy...">
+        </div>
+        <div class="form-group" style="margin-bottom: 0;">
+          <label class="form-label">Project ID (<code>projectId</code>) <span style="color: var(--danger);">*</span></label>
+          <input type="text" id="fbProjectId" class="form-control" value="${cfg.projectId || ''}" placeholder="campus-impact-hub">
+        </div>
+        <div class="form-group" style="margin-bottom: 0;">
+          <label class="form-label">Auth Domain (<code>authDomain</code>)</label>
+          <input type="text" id="fbAuthDomain" class="form-control" value="${cfg.authDomain || ''}" placeholder="campus-impact-hub.firebaseapp.com">
+        </div>
+        <div class="form-group" style="margin-bottom: 0;">
+          <label class="form-label">App ID (<code>appId</code>)</label>
+          <input type="text" id="fbAppId" class="form-control" value="${cfg.appId || ''}" placeholder="1:123456789:web:abcdef">
+        </div>
+      </div>
+
+      <div style="background: var(--surface-alt); padding: 10px 14px; border-radius: var(--radius-sm); margin-bottom: 14px;">
+        <label class="form-checkbox-label" style="font-size: 12.5px; font-weight: 600;">
+          <input type="checkbox" id="fbUseEmulator" class="form-checkbox" ${cfg.useEmulator ? 'checked' : ''}>
+          <span>Gunakan Firebase Auth Local Emulator (<code>http://localhost:9099</code>)</span>
+        </label>
+      </div>
+
+      <div style="background: var(--primary-light); border: 1px solid var(--primary-border); padding: 12px 14px; border-radius: var(--radius-sm);">
+        <div style="font-size: 12px; font-weight: 700; color: var(--primary); margin-bottom: 6px;">
+          Uji Coba Langsung Bridge Firebase Auth &rarr; Backend Server:
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+          <select id="fbSimRole" class="form-control" style="flex: 1; min-width: 170px; height: 36px; font-size: 12.5px; padding: 4px 10px;">
+            <option value="mahasiswa@kampus.ac.id">Google Auth: Budi Santoso (Mahasiswa)</option>
+            <option value="bem@kampus.ac.id">Google Auth: Rizky Pratama (BEM / UKM)</option>
+            <option value="umkm@kampus.ac.id">Google Auth: UMKM Maju Jaya (Mitra UMKM)</option>
+            <option value="dosen@kampus.ac.id">Google Auth: Dr. Ir. Hendra Wijaya (Admin / Dosen)</option>
+          </select>
+          <button type="button" id="btnSimulateFirebaseLogin" class="btn btn-primary" style="font-size: 12.5px; padding: 7px 14px;">
+            ${Icons.check(14)} Tes Login via Token Firebase
+          </button>
+        </div>
+      </div>
+    `;
+
+    const footerHtml = `
+      <button type="button" class="btn btn-outline" onclick="app.closeModal()">Tutup</button>
+      <button type="button" class="btn btn-primary" id="btnSaveFirebaseConfig">${Icons.check(15)} Simpan Konfigurasi Firebase</button>
+    `;
+
+    this.openModal('Konfigurasi & Integrasi Firebase Authentication', bodyHtml, footerHtml);
+
+    document.getElementById('btnParseFbSnippet')?.addEventListener('click', () => {
+      const snippet = document.getElementById('fbSnippetInput').value;
+      const parsed = FirebaseAuthService.parseConfigSnippet(snippet);
+      if (!parsed) {
+        this.showToast('Tidak dapat menemukan apiKey / projectId pada teks snippet.', 'warning');
+        return;
+      }
+      document.getElementById('fbApiKey').value = parsed.apiKey || '';
+      document.getElementById('fbProjectId').value = parsed.projectId || '';
+      document.getElementById('fbAuthDomain').value = parsed.authDomain || '';
+      document.getElementById('fbAppId').value = parsed.appId || '';
+      this.showToast('Konfigurasi berhasil diekstrak dari snippet!', 'success');
+    });
+
+    document.getElementById('btnSaveFirebaseConfig')?.addEventListener('click', async () => {
+      const apiKey = document.getElementById('fbApiKey').value.trim();
+      const projectId = document.getElementById('fbProjectId').value.trim();
+      const authDomain = document.getElementById('fbAuthDomain').value.trim();
+      const appId = document.getElementById('fbAppId').value.trim();
+      const useEmulator = document.getElementById('fbUseEmulator').checked;
+
+      try {
+        await FirebaseAuthService.saveConfig(
+          { apiKey, projectId, authDomain, appId, useEmulator },
+          CampusRepository.authToken
+        );
+        this.closeModal();
+        this.showToast(
+          apiKey && projectId
+            ? `Firebase Authentication terhubung ke project "${projectId}"!`
+            : 'Konfigurasi Firebase disimpan.',
+          'success'
+        );
+        this.render();
+      } catch (err) {
+        this.showToast(`Gagal menginisialisasi SDK Firebase: ${err.message}`, 'warning');
+      }
+    });
+
+    document.getElementById('btnSimulateFirebaseLogin')?.addEventListener('click', async () => {
+      const targetEmail = document.getElementById('fbSimRole').value;
+      const headerB64 = btoa(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
+      const payloadB64 = btoa(
+        JSON.stringify({
+          iss: `https://securetoken.google.com/${cfg.projectId || 'campus-impact-hub'}`,
+          aud: cfg.projectId || 'campus-impact-hub',
+          user_id: `firebase-uid-${targetEmail.split('@')[0]}`,
+          sub: `firebase-uid-${targetEmail.split('@')[0]}`,
+          email: targetEmail,
+          email_verified: true,
+          firebase: { sign_in_provider: 'google.com' }
+        })
+      );
+      const mockJwt = `${headerB64}.${payloadB64}.firebase-signature`;
+
+      const res = await CampusRepository.loginWithFirebase({
+        idToken: mockJwt,
+        uid: `firebase-uid-${targetEmail.split('@')[0]}`,
+        email: targetEmail,
+        providerId: 'google.com'
+      });
+
+      if (res.success) {
+        this.closeModal();
+        this.showToast(res.message, 'success');
+        this.switchTab('home');
+      } else {
+        this.showToast(res.message, 'danger');
+      }
+    });
   }
 
   handleSkFileSelection(fileInput, previewContainerId = null) {
